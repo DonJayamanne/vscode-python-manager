@@ -8,7 +8,6 @@ import { IServiceContainer } from '../ioc/types';
 import { PythonEnvironment } from '../pythonEnvironments/info';
 import { IComponentAdapter, IInterpreterService, PythonEnvironmentsChangedEvent } from './contracts';
 import { PythonLocatorQuery } from '../pythonEnvironments/base/locator';
-import { traceError } from '../logging';
 
 type StoredPythonEnvironment = PythonEnvironment & { store?: boolean };
 

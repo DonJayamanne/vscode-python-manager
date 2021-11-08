@@ -33,7 +33,7 @@ import {
 
 const ENVIRONMENT_PREFIX = 'e8b39361-0157-4923-80e1-22d70d46dee6';
 const CACHE_DURATION = 10 * 60 * 1000;
-const ENVIRONMENT_TIMEOUT = 30000;
+const ENVIRONMENT_TIMEOUT = 60_000;
 
 // The shell under which we'll execute activation scripts.
 const defaultShells = {

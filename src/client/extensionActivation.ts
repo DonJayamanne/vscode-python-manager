@@ -120,6 +120,6 @@ async function activateLegacy(ext: ExtensionState): Promise<ActivationResult> {
     terminalProvider.initialize(window.activeTerminal).ignoreErrors();
     context.subscriptions.push(terminalProvider);
 
-    registerEnvironmentTypes(serviceManager);
+    registerEnvironmentTypes(serviceManager, ext.context);
     return { fullyReady: activationPromise };
 }
