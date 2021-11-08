@@ -5,12 +5,10 @@
 
 import { inject, injectable, multiInject } from 'inversify';
 import { TextDocument } from 'vscode';
-import { IApplicationDiagnostics } from '../application/types';
 import { IActiveResourceService, IDocumentManager, IWorkspaceService } from '../common/application/types';
 import { PYTHON_LANGUAGE } from '../common/constants';
-import { DeprecatePythonPath } from '../common/experiments/groups';
 import { IFileSystem } from '../common/platform/types';
-import { IDisposable, IExperimentService, IInterpreterPathService, Resource } from '../common/types';
+import { IDisposable, IInterpreterPathService, Resource } from '../common/types';
 import { Deferred } from '../common/utils/async';
 import { IInterpreterAutoSelectionService } from '../interpreter/autoSelection/types';
 import { traceDecoratorError } from '../logging';
@@ -33,11 +31,9 @@ export class ExtensionActivationManager implements IExtensionActivationManager {
         private readonly singleActivationServices: IExtensionSingleActivationService[],
         @inject(IDocumentManager) private readonly documentManager: IDocumentManager,
         @inject(IInterpreterAutoSelectionService) private readonly autoSelection: IInterpreterAutoSelectionService,
-        @inject(IApplicationDiagnostics) private readonly appDiagnostics: IApplicationDiagnostics,
         @inject(IWorkspaceService) private readonly workspaceService: IWorkspaceService,
         @inject(IFileSystem) private readonly fileSystem: IFileSystem,
         @inject(IActiveResourceService) private readonly activeResourceService: IActiveResourceService,
-        @inject(IExperimentService) private readonly experiments: IExperimentService,
         @inject(IInterpreterPathService) private readonly interpreterPathService: IInterpreterPathService,
     ) {}
 
@@ -70,7 +66,8 @@ export class ExtensionActivationManager implements IExtensionActivationManager {
         }
         this.activatedWorkspaces.add(key);
 
-        if (this.experiments.inExperimentSync(DeprecatePythonPath.experiment)) {
+        // DON: Experiment was here.
+        if (true) {
             await this.interpreterPathService.copyOldInterpreterStorageValuesToNew(resource);
         }
 
@@ -78,7 +75,6 @@ export class ExtensionActivationManager implements IExtensionActivationManager {
 
         await this.autoSelection.autoSelectInterpreter(resource);
         await Promise.all(this.activationServices.map((item) => item.activate(resource)));
-        await this.appDiagnostics.performPreStartupHealthCheck(resource);
     }
 
     public async initialize(): Promise<void> {
