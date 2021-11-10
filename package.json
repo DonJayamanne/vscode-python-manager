@@ -2,7 +2,7 @@
     "name": "python-environment-manager",
     "displayName": "Python Environment Manager",
     "description": "View and manage Python environments & pacakges.",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "capabilities": {
         "untrustedWorkspaces": {
             "supported": false,
@@ -184,6 +184,7 @@
         "hash.js": "^1.1.7",
         "iconv-lite": "^0.4.21",
         "inversify": "^5.0.4",
+        "is-wsl": "^2.2.0",
         "jsonc-parser": "^2.0.3",
         "lodash": "^4.17.21",
         "md5": "^2.2.1",
