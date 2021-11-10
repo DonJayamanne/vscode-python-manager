@@ -20,6 +20,7 @@ import { TerminalProvider } from './providers/terminalProvider';
 import { registerTypes as commonRegisterTerminalTypes } from './terminals/serviceRegistry';
 import { ICodeExecutionManager } from './terminals/types';
 import { registerTypes as interpretersRegisterTypes } from './interpreter/serviceRegistry';
+import { registerTypes as registerEnvironmentTypes } from '../environments/serviceRegistry';
 
 // components
 import * as pythonEnvironments from './pythonEnvironments';
@@ -116,6 +117,6 @@ async function activateLegacy(ext: ExtensionState): Promise<ActivationResult> {
     const terminalProvider = new TerminalProvider(serviceContainer);
     context.subscriptions.push(terminalProvider);
 
-    // registerEnvironmentTypes(serviceManager);
+    registerEnvironmentTypes(serviceManager, ext.context);
     return { fullyReady: activationPromise };
 }
