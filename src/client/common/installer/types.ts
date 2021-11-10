@@ -70,14 +70,6 @@ export interface IProductPathService {
     getExecutableNameFromSettings(product: Product, resource?: Uri): string;
     isExecutableAModule(product: Product, resource?: Uri): boolean;
 }
-
-export const INSIDERS_INSTALLER = 'INSIDERS_INSTALLER';
-export const STABLE_INSTALLER = 'STABLE_INSTALLER';
-export const IExtensionBuildInstaller = Symbol('IExtensionBuildInstaller');
-export interface IExtensionBuildInstaller {
-    install(): Promise<void>;
-}
-
 export enum ModuleInstallFlags {
     upgrade = 1,
     updateDependencies = 2,

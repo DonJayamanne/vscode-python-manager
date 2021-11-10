@@ -3,11 +3,9 @@
 
 import { IWorkspaceService } from './common/application/types';
 import { isTestExecution } from './common/constants';
-import { DeprecatePythonPath } from './common/experiments/groups';
 import { ITerminalHelper } from './common/terminal/types';
 import {
     IConfigurationService,
-    IExperimentService,
     IInterpreterPathService,
     InspectInterpreterSettingType,
     Resource,
@@ -73,11 +71,12 @@ function isUsingGlobalInterpreterInWorkspace(currentPythonPath: string, serviceC
 }
 
 export function hasUserDefinedPythonPath(resource: Resource, serviceContainer: IServiceContainer) {
-    const abExperiments = serviceContainer.get<IExperimentService>(IExperimentService);
     const workspaceService = serviceContainer.get<IWorkspaceService>(IWorkspaceService);
     const interpreterPathService = serviceContainer.get<IInterpreterPathService>(IInterpreterPathService);
     let settings: InspectInterpreterSettingType;
-    if (abExperiments.inExperimentSync(DeprecatePythonPath.experiment)) {
+    // if (abExperiments.inExperimentSync(DeprecatePythonPath.experiment)) {
+    // DON:
+    if (true) {
         settings = interpreterPathService.inspect(resource);
     } else {
         settings = workspaceService.getConfiguration('python', resource)!.inspect<string>('pythonPath')!;
