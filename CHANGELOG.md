@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 (9 November 2021)
+
+1. Support activation of environments in terminals that do not offer activation scripts.
+
 ## 1.0.2 (8 November 2021)
 
 1. Disabled activation of global environments.
