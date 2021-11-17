@@ -5,15 +5,13 @@
 
 import { inject, injectable } from 'inversify';
 import { IWorkspaceService } from './application/types';
-import { DeprecatePythonPath } from './experiments/groups';
-import { IExperimentService, IInterpreterPathProxyService, IInterpreterPathService, Resource } from './types';
+import { IInterpreterPathProxyService, IInterpreterPathService, Resource } from './types';
 import { SystemVariables } from './variables/systemVariables';
 
 @injectable()
 export class InterpreterPathProxyService implements IInterpreterPathProxyService {
     constructor(
         @inject(IInterpreterPathService) private readonly interpreterPathService: IInterpreterPathService,
-        @inject(IExperimentService) private readonly experiment: IExperimentService,
         @inject(IWorkspaceService) private readonly workspace: IWorkspaceService,
     ) {}
 
@@ -25,8 +23,11 @@ export class InterpreterPathProxyService implements IInterpreterPathProxyService
         );
         const pythonSettings = this.workspace.getConfiguration('python', resource);
         return systemVariables.resolveAny(
-            this.experiment.inExperimentSync(DeprecatePythonPath.experiment)
-                ? this.interpreterPathService.get(resource)
+            // DON:
+            // eslint-disable-next-line no-constant-condition
+            true
+                ? // this.experiment.inExperimentSync(DeprecatePythonPath.experiment)
+                  this.interpreterPathService.get(resource)
                 : pythonSettings.get<string>('pythonPath'),
         )!;
     }
