@@ -2,24 +2,12 @@ import { inject, injectable } from 'inversify';
 import { Disposable, Event, EventEmitter, Uri } from 'vscode';
 import '../common/extensions';
 import { IDocumentManager, IWorkspaceService } from '../common/application/types';
-import { DeprecatePythonPath } from '../common/experiments/groups';
 import { IPythonExecutionFactory } from '../common/process/types';
-import {
-    IConfigurationService,
-    IDisposableRegistry,
-    IExperimentService,
-    IInterpreterPathService,
-} from '../common/types';
+import { IConfigurationService, IDisposableRegistry, IInterpreterPathService } from '../common/types';
 import { IServiceContainer } from '../ioc/types';
 import { PythonEnvironment } from '../pythonEnvironments/info';
-import {
-    IComponentAdapter,
-    IInterpreterDisplay,
-    IInterpreterService,
-    PythonEnvironmentsChangedEvent,
-} from './contracts';
+import { IComponentAdapter, IInterpreterService, PythonEnvironmentsChangedEvent } from './contracts';
 import { PythonLocatorQuery } from '../pythonEnvironments/base/locator';
-import { traceError } from '../logging';
 
 type StoredPythonEnvironment = PythonEnvironment & { store?: boolean };
 
@@ -65,8 +53,6 @@ export class InterpreterService implements Disposable, IInterpreterService {
 
     private readonly interpreterPathService: IInterpreterPathService;
 
-    private readonly experimentsManager: IExperimentService;
-
     private readonly didChangeInterpreterEmitter = new EventEmitter<void>();
 
     private readonly didChangeInterpreterInformation = new EventEmitter<PythonEnvironment>();
@@ -77,13 +63,11 @@ export class InterpreterService implements Disposable, IInterpreterService {
     ) {
         this.configService = this.serviceContainer.get<IConfigurationService>(IConfigurationService);
         this.interpreterPathService = this.serviceContainer.get<IInterpreterPathService>(IInterpreterPathService);
-        this.experimentsManager = this.serviceContainer.get<IExperimentService>(IExperimentService);
         this.onDidChangeInterpreters = pyenvs.onChanged;
     }
 
-    public async refresh(resource?: Uri): Promise<void> {
-        const interpreterDisplay = this.serviceContainer.get<IInterpreterDisplay>(IInterpreterDisplay);
-        return interpreterDisplay.refresh(resource);
+    public async refresh(_resource?: Uri): Promise<void> {
+        // noop.
     }
 
     public initialize(): void {
@@ -97,7 +81,10 @@ export class InterpreterService implements Disposable, IInterpreterService {
         const workspaceService = this.serviceContainer.get<IWorkspaceService>(IWorkspaceService);
         const pySettings = this.configService.getSettings();
         this._pythonPathSetting = pySettings.pythonPath;
-        if (this.experimentsManager.inExperimentSync(DeprecatePythonPath.experiment)) {
+        // if (this.experimentsManager.inExperimentSync(DeprecatePythonPath.experiment)) {
+        // DON:
+        // eslint-disable-next-line no-constant-condition
+        if (true) {
             disposables.push(
                 this.interpreterPathService.onDidChange((i) => {
                     this._onConfigChanged(i.uri);
@@ -160,8 +147,6 @@ export class InterpreterService implements Disposable, IInterpreterService {
         if (this._pythonPathSetting === '' || this._pythonPathSetting !== pySettings.pythonPath) {
             this._pythonPathSetting = pySettings.pythonPath;
             this.didChangeInterpreterEmitter.fire();
-            const interpreterDisplay = this.serviceContainer.get<IInterpreterDisplay>(IInterpreterDisplay);
-            interpreterDisplay.refresh().catch((ex) => traceError('Python Extension: display.refresh', ex));
         }
     };
 }
