@@ -54,7 +54,7 @@ class EnviornmentInformationWrapper {
         }
         if (env.architecture !== Architecture.Unknown) {
             this.info.push(
-                new EnvironmentInfo('Archictecture', env.architecture === Architecture.x64 ? '64-bit' : '32-bit'),
+                new EnvironmentInfo('Architecture', env.architecture === Architecture.x64 ? '64-bit' : '32-bit'),
             );
         }
         if (env.path) {
