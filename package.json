@@ -1,7 +1,7 @@
 {
     "name": "python-environment-manager",
     "displayName": "Python Environment Manager",
-    "description": "View and manage Python environments & pacakges.",
+    "description": "View and manage Python environments & packages.",
     "version": "1.0.3",
     "capabilities": {
         "untrustedWorkspaces": {
