@@ -474,7 +474,7 @@ export interface IEventNamePropertyMapping {
          */
         installer: string;
         /**
-         * The name of the installer required (expected to be available) for installation of pacakges. (pipenv, Conda etc.)
+         * The name of the installer required (expected to be available) for installation of packages. (pipenv, Conda etc.)
          */
         requiredInstaller?: string;
         /**
