@@ -3,7 +3,7 @@
 
 import { inject, injectable, optional } from 'inversify';
 import { ConfigurationChangeEvent, Disposable, Event, EventEmitter, FileSystemWatcher, Uri } from 'vscode';
-import { traceVerbose } from '../../logging';
+import { traceError, traceVerbose } from '../../logging';
 import { sendFileCreationTelemetry } from '../../telemetry/envFileTelemetry';
 import { IWorkspaceService } from '../application/types';
 import { PythonSettings } from '../configSettings';
@@ -119,12 +119,16 @@ export class EnvironmentVariablesProvider implements IEnvironmentVariablesProvid
         if (this.fileWatchers.has(envFile)) {
             return;
         }
-        const envFileWatcher = this.workspaceService.createFileSystemWatcher(envFile);
-        this.fileWatchers.set(envFile, envFileWatcher);
-        if (envFileWatcher) {
-            this.disposables.push(envFileWatcher.onDidChange(() => this.onEnvironmentFileChanged(workspaceFolderUri)));
-            this.disposables.push(envFileWatcher.onDidCreate(() => this.onEnvironmentFileCreated(workspaceFolderUri)));
-            this.disposables.push(envFileWatcher.onDidDelete(() => this.onEnvironmentFileChanged(workspaceFolderUri)));
+        try {
+            const envFileWatcher = this.workspaceService.createFileSystemWatcher(envFile);
+            this.fileWatchers.set(envFile, envFileWatcher);
+            if (envFileWatcher) {
+                this.disposables.push(envFileWatcher.onDidChange(() => this.onEnvironmentFileChanged(workspaceFolderUri)));
+                this.disposables.push(envFileWatcher.onDidCreate(() => this.onEnvironmentFileCreated(workspaceFolderUri)));
+                this.disposables.push(envFileWatcher.onDidDelete(() => this.onEnvironmentFileChanged(workspaceFolderUri)));
+            }
+        } catch (ex) {
+            traceError(`Failed to create a file system watcher for ${envFile} in ${workspaceFolderUri?.fsPath}`, ex);
         }
     }
 

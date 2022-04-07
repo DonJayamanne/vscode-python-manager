@@ -20,10 +20,11 @@ import { EventName, PlatformErrors } from './constants';
  */
 function isTelemetrySupported(): boolean {
     try {
-        const vsc = require('vscode');
-        const reporter = require('vscode-extension-telemetry');
+        // const vsc = require('vscode');
+        // const reporter = require('vscode-extension-telemetry');
 
-        return vsc !== undefined && reporter !== undefined;
+        // return vsc !== undefined && reporter !== undefined;
+        return false;
     } catch {
         return false;
     }
