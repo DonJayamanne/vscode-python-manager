@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { RelativePattern, workspace } from 'vscode';
-import { traceVerbose } from '../../logging';
+import { traceError, traceVerbose } from '../../logging';
 import { Disposables, IDisposable } from '../utils/resourceLifecycle';
 
 /**
@@ -22,9 +22,13 @@ export function watchLocationForPattern(
     const globPattern = new RelativePattern(baseDir, pattern);
     const disposables = new Disposables();
     traceVerbose(`Start watching: ${baseDir} with pattern ${pattern} using VSCode API`);
-    const watcher = workspace.createFileSystemWatcher(globPattern);
-    disposables.push(watcher.onDidCreate((e) => callback(FileChangeType.Created, e.fsPath)));
-    disposables.push(watcher.onDidChange((e) => callback(FileChangeType.Changed, e.fsPath)));
-    disposables.push(watcher.onDidDelete((e) => callback(FileChangeType.Deleted, e.fsPath)));
+    try {
+        const watcher = workspace.createFileSystemWatcher(globPattern);
+        disposables.push(watcher.onDidCreate((e) => callback(FileChangeType.Created, e.fsPath)));
+        disposables.push(watcher.onDidChange((e) => callback(FileChangeType.Changed, e.fsPath)));
+        disposables.push(watcher.onDidDelete((e) => callback(FileChangeType.Deleted, e.fsPath)));
+    } catch (ex) {
+        traceError(`Failed to create File System watcher for patter ${pattern} in ${baseDir}`, ex);
+    }
     return disposables;
 }

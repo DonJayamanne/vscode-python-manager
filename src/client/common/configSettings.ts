@@ -238,11 +238,11 @@ export class PythonSettings implements IPythonSettings {
         this.terminal = this.terminal
             ? this.terminal
             : {
-                  executeInFileDir: true,
-                  launchArgs: [],
-                  activateEnvironment: true,
-                  activateEnvInCurrentTerminal: false,
-              };
+                executeInFileDir: true,
+                launchArgs: [],
+                activateEnvironment: true,
+                activateEnvInCurrentTerminal: false,
+            };
     }
 
     // eslint-disable-next-line class-methods-use-this

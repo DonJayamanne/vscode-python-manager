@@ -1,16 +1,16 @@
 {
     "name": "python-environment-manager",
     "displayName": "Python Environment Manager",
-    "description": "IntelliSense (Pylance), Linting, Debugging (multi-threaded, remote), Jupyter Notebooks, code formatting, refactoring, unit tests, and more.",
-    "version": "1.0.0",
+    "description": "View and manage Python environments & packages.",
+    "version": "1.0.4",
     "capabilities": {
         "untrustedWorkspaces": {
-            "supported": "limited",
-            "description": "Only Partial IntelliSense with Pylance is supported. Cannot execute Python with untrusted files."
+            "supported": false,
+            "description": "Management of Python environments in untrusted workspaces is not supported."
         },
         "virtualWorkspaces": {
-            "supported": "limited",
-            "description": "Only Partial IntelliSense supported."
+            "supported": false,
+            "description": "Management of Python environments is not supported on the web."
         }
     },
     "publisher": "donjayamanne",
@@ -18,15 +18,15 @@
         "name": "Don Jayamanne"
     },
     "license": "MIT",
-    "homepage": "https://github.com/donjayamanne/vscode-python",
+    "homepage": "https://github.com/DonJayamanne/vscode-python-manager",
     "repository": {
         "type": "git",
-        "url": "https://github.com/donjayamanne/vscode-python/environmentManager"
+        "url": "https://github.com/DonJayamanne/vscode-python-manager"
     },
     "bugs": {
-        "url": "https://github.com/donjayamanne/vscode-python/issues"
+        "url": "https://github.com/DonJayamanne/vscode-python-manager/issues"
     },
-    "qna": "https://github.com/microsoft/vscode-python/discussions/categories/q-a",
+    "qna": "https://github.com/DonJayamanne/vscode-python-manager/issues",
     "icon": "icon.png",
     "galleryBanner": {
         "color": "#1e415e",
@@ -45,40 +45,99 @@
     ],
     "categories": [
         "Programming Languages",
+        "Machine Learning",
         "Other",
         "Data Science"
     ],
     "activationEvents": [
-        "*"
+        "onView:pythonEnvironments"
     ],
     "main": "./out/client/extension",
-    "browser": "./dist/extension.browser.js",
     "contributes": {
         "commands": [
             {
                 "command": "python.envManager.clearPersistentStorage",
-                "title": "Clear this"
+                "title": "Python: Clear Environment Manager cache",
+                "enablement": "false"
+            },
+            {
+                "command": "python.envManager.create",
+                "title": "Create Environment",
+                "icon": "$(add)"
+            },
+            {
+                "command": "python.envManager.delete",
+                "title": "Delete Environment",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "python.envManager.viewPackages",
+                "title": "View Packages",
+                "icon": "$(package)"
+            },
+            {
+                "command": "python.envManager.openInTerminal",
+                "title": "Open in Terminal",
+                "icon": "$(terminal)"
+            },
+            {
+                "command": "python.envManager.refresh",
+                "title": "Refresh Environments",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "python.envManager.setAsActiveInterpreter",
+                "title": "Set as active workspace interpreter",
+                "icon": "$(thumbsup)"
+            },
+            {
+                "command": "python.envManager.installPython",
+                "title": "Download and setup Python",
+                "icon": "$(cloud-download)"
             }
         ],
-        "configuration": {
-            "properties": {
-                "python.xxx": {
-                    "default": "",
-                    "description": "Path to the conda executable to use for activation (version 4.4+).",
-                    "scope": "machine",
-                    "type": "string"
+        "menus": {
+            "view/title": [
+                {
+                    "command": "python.envManager.refresh",
+                    "when": "view == pythonEnvironments",
+                    "group": "navigation"
+                },
+                {
+                    "command": "python.envManager.installPython",
+                    "when": "view == pythonEnvironments && python.envManager.pythonIsNotInstalled",
+                    "group": "navigation"
                 }
-            },
-            "title": "Python",
-            "type": "object"
+            ],
+            "view/item/context": [
+                {
+                    "command": "python.envManager.create",
+                    "when": "view == pythonEnvironments && viewItem =~ /^envType:canCreate:/",
+                    "group": "inline"
+                },
+                {
+                    "command": "python.envManager.delete",
+                    "when": "view == pythonEnvironments && viewItem =~ /^env:canBeDeleted:/",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "python.envManager.openInTerminal",
+                    "when": "view == pythonEnvironments && viewItem =~ /^env:/",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "python.envManager.setAsActiveInterpreter",
+                    "when": "view == pythonEnvironments && viewItem =~ /^env:/",
+                    "group": "inline@3"
+                }
+            ]
         },
-        "menus": {},
         "viewsWelcome": [],
         "viewsContainers": {
             "activitybar": [
                 {
                     "id": "package-explorer",
-                    "title": "Package Explorer",
+                    "title": "Python",
                     "icon": "resources/logo.svg"
                 }
             ]
@@ -87,15 +146,15 @@
             "package-explorer": [
                 {
                     "id": "pythonEnvironments",
-                    "name": "Node Dependencies",
+                    "name": "Environments",
                     "icon": "resources/logo.svg",
-                    "contextualTitle": "Package Explorer"
+                    "contextualTitle": "Environment Manager"
                 }
             ]
         }
     },
     "scripts": {
-        "package": "gulp clean && gulp prePublishBundle && vsce package -o ms-python-insiders.vsix",
+        "package": "gulp clean && gulp prePublishBundle && vsce package -o python-env-manager.vsix",
         "prePublish": "gulp clean && gulp prePublishNonBundle",
         "compile": "tsc -watch -p ./",
         "compiled": "deemon npm run compile",
@@ -131,7 +190,7 @@
         "webpack": "webpack"
     },
     "dependencies": {
-        "@vscode/jupyter-lsp-middleware": "^0.2.41",
+        "@vscode/codicons": "0.0.26",
         "arch": "^2.1.0",
         "diff-match-patch": "^1.0.0",
         "fs-extra": "^10.0.1",
@@ -139,31 +198,28 @@
         "hash.js": "^1.1.7",
         "iconv-lite": "^0.6.3",
         "inversify": "^5.0.4",
-        "jsonc-parser": "^3.0.0",
+        "is-wsl": "^2.2.0",
+        "jsonc-parser": "^2.0.3",
         "lodash": "^4.17.21",
         "md5": "^2.2.1",
         "minimatch": "^5.0.1",
         "named-js-regexp": "^1.3.3",
         "node-stream-zip": "^1.6.0",
         "reflect-metadata": "^0.1.12",
-        "request": "^2.87.0",
+        "request": "^2.88.2",
         "request-progress": "^3.0.0",
         "rxjs": "^6.5.4",
         "rxjs-compat": "^6.5.4",
         "semver": "^5.5.0",
-        "sudo-prompt": "^9.2.1",
+        "sudo-prompt": "^8.2.0",
+        "tar": "^6.1.11",
         "tmp": "^0.0.33",
         "uint64be": "^3.0.0",
+        "unbzip2-stream": "^1.4.3",
         "unicode": "^14.0.0",
         "untildify": "^4.0.0",
-        "vscode-debugadapter": "^1.28.0",
-        "vscode-debugprotocol": "^1.28.0",
         "vscode-extension-telemetry": "0.4.5",
         "vscode-jsonrpc": "8.0.0-next.7",
-        "vscode-languageclient": "8.0.0-next.13",
-        "vscode-languageserver": "8.0.0-next.9",
-        "vscode-languageserver-protocol": "3.17.0-next.15",
-        "vscode-tas-client": "^0.1.22",
         "winreg": "^1.2.4",
         "xml2js": "^0.4.19"
     },
@@ -181,11 +237,14 @@
         "@types/mocha": "^9.1.0",
         "@types/nock": "^10.0.3",
         "@types/node": "^14.18.0",
-        "@types/request": "^2.47.0",
+        "@types/request": "^2.48.8",
         "@types/semver": "^5.5.0",
         "@types/shortid": "^0.0.29",
         "@types/sinon": "^10.0.11",
-        "@types/tmp": "^0.0.33",
+        "@types/tar": "^6.1.1",
+        "@types/tmp": "0.0.33",
+        "@types/unbzip2-stream": "^1.4.0",
+        "@types/untildify": "^3.0.0",
         "@types/uuid": "^8.3.4",
         "@types/vscode": "~1.65.0",
         "@types/winreg": "^1.2.30",

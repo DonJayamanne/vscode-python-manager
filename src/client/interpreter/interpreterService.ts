@@ -114,8 +114,8 @@ export class InterpreterService implements Disposable, IInterpreterService {
                 : undefined;
             const fullyQualifiedPath = pythonExecutionService
                 ? await pythonExecutionService.getExecutablePath().catch((ex) => {
-                      traceError(ex);
-                  })
+                    traceError(ex);
+                })
                 : undefined;
             // Python path is invalid or python isn't installed.
             if (!fullyQualifiedPath) {
