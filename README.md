@@ -1,6 +1,6 @@
 # Python Environment Manager
 
-A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) that provides the ability to via and manage all of your Python environments & packages from a single place.
+A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) that provides the ability to view and manage all of your Python environments & packages from a single place.
 
 ## Features
 * Viewing all of your Python environments grouped by their type (Conda, PyEnv, etc)
