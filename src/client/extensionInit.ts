@@ -9,12 +9,14 @@ import { STANDARD_OUTPUT_CHANNEL } from './common/constants';
 import { registerTypes as platformRegisterTypes } from './common/platform/serviceRegistry';
 import { registerTypes as processRegisterTypes } from './common/process/serviceRegistry';
 import { registerTypes as commonRegisterTypes } from './common/serviceRegistry';
+import { registerTypes as interpretersRegisterTypes } from './interpreter/serviceRegistry';
 import {
     GLOBAL_MEMENTO,
     IDisposableRegistry,
     IExtensionContext,
     IMemento,
-    IOutputChannel,
+    ILogOutputChannel,
+    ITestOutputChannel,
     WORKSPACE_MEMENTO,
 } from './common/types';
 import { registerTypes as variableRegisterTypes } from './common/variables/serviceRegistry';
@@ -36,10 +38,10 @@ export function initializeGlobals(
     // This is stored in ExtensionState.
     context: IExtensionContext,
 ): ExtensionState {
+    const disposables: IDisposableRegistry = context.subscriptions;
     const cont = new Container({ skipBaseClassChecks: true });
     const serviceManager = new ServiceManager(cont);
     const serviceContainer = new ServiceContainer(cont);
-    const disposables: IDisposableRegistry = context.subscriptions;
 
     serviceManager.addSingletonInstance<IServiceContainer>(IServiceContainer, serviceContainer);
     serviceManager.addSingletonInstance<IServiceManager>(IServiceManager, serviceManager);
@@ -70,6 +72,7 @@ export function initializeStandard(ext: ExtensionState): void {
     variableRegisterTypes(serviceManager);
     platformRegisterTypes(serviceManager);
     processRegisterTypes(serviceManager);
+    interpretersRegisterTypes(serviceManager);
 
     // We will be pulling other code over from activateLegacy().
 }

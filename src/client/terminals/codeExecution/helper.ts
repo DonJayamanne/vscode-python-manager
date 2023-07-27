@@ -3,9 +3,9 @@
 import '../../common/extensions';
 
 import { inject, injectable } from 'inversify';
-import { Position, Range, TextEditor, Uri } from 'vscode';
+import { l10n, Position, Range, TextEditor, Uri } from 'vscode';
 
-import { IApplicationShell, IDocumentManager } from '../../common/application/types';
+import { IApplicationShell, IDocumentManager, IWorkspaceService } from '../../common/application/types';
 import { PYTHON_LANGUAGE } from '../../common/constants';
 import * as internalScripts from '../../common/process/internal/scripts';
 import { IProcessServiceFactory } from '../../common/process/types';
@@ -14,6 +14,7 @@ import { IInterpreterService } from '../../interpreter/contracts';
 import { IServiceContainer } from '../../ioc/types';
 import { ICodeExecutionHelper } from '../types';
 import { traceError } from '../../logging';
+import { Resource } from '../../common/types';
 
 @injectable()
 export class CodeExecutionHelper implements ICodeExecutionHelper {
@@ -25,7 +26,7 @@ export class CodeExecutionHelper implements ICodeExecutionHelper {
 
     private readonly interpreterService: IInterpreterService;
 
-    constructor(@inject(IServiceContainer) serviceContainer: IServiceContainer) {
+    constructor(@inject(IServiceContainer) private readonly serviceContainer: IServiceContainer) {
         this.documentManager = serviceContainer.get<IDocumentManager>(IDocumentManager);
         this.applicationShell = serviceContainer.get<IApplicationShell>(IApplicationShell);
         this.processServiceFactory = serviceContainer.get<IProcessServiceFactory>(IProcessServiceFactory);
@@ -83,15 +84,15 @@ export class CodeExecutionHelper implements ICodeExecutionHelper {
     public async getFileToExecute(): Promise<Uri | undefined> {
         const activeEditor = this.documentManager.activeTextEditor;
         if (!activeEditor) {
-            this.applicationShell.showErrorMessage('No open file to run in terminal');
+            this.applicationShell.showErrorMessage(l10n.t('No open file to run in terminal'));
             return undefined;
         }
         if (activeEditor.document.isUntitled) {
-            this.applicationShell.showErrorMessage('The active file needs to be saved before it can be run');
+            this.applicationShell.showErrorMessage(l10n.t('The active file needs to be saved before it can be run'));
             return undefined;
         }
         if (activeEditor.document.languageId !== PYTHON_LANGUAGE) {
-            this.applicationShell.showErrorMessage('The active file is not a Python source file');
+            this.applicationShell.showErrorMessage(l10n.t('The active file is not a Python source file)'));
             return undefined;
         }
         if (activeEditor.document.isDirty) {
@@ -119,11 +120,13 @@ export class CodeExecutionHelper implements ICodeExecutionHelper {
         return code;
     }
 
-    public async saveFileIfDirty(file: Uri): Promise<void> {
+    public async saveFileIfDirty(file: Uri): Promise<Resource> {
         const docs = this.documentManager.textDocuments.filter((d) => d.uri.path === file.path);
-        if (docs.length === 1 && docs[0].isDirty) {
-            await docs[0].save();
+        if (docs.length === 1 && (docs[0].isDirty || docs[0].isUntitled)) {
+            const workspaceService = this.serviceContainer.get<IWorkspaceService>(IWorkspaceService);
+            return workspaceService.save(docs[0].uri);
         }
+        return undefined;
     }
 }
 

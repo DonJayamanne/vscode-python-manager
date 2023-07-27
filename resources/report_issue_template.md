@@ -12,7 +12,7 @@ XXX
 **After** creating the issue on GitHub, you can add screenshots and GIFs of what is happening. Consider tools like https://www.cockos.com/licecap/, https://github.com/phw/peek or https://www.screentogif.com/ for GIF creation.
 -->
 
-<!-- **NOTE**: Everything below is auto-generated; no editing required. -->
+<!-- **NOTE**: Everything below except Python output panel is auto-generated; no editing required. Please do provide Python output panel. -->
 # Diagnostic data
 
 -   Python version (& distribution if applicable, e.g. Anaconda): {0}
@@ -21,12 +21,26 @@ XXX
 
 <details>
 
+<summary>Output for <code>Python</code> in the <code>Output</code> panel (<code>View</code>→<code>Output</code>, change the drop-down the upper-right of the <code>Output</code> panel to <code>Python</code>)
+</summary>
+
+<p>
+
+```
+XXX
+```
+
+</p>
+</details>
+
+<details>
+
 <summary>User Settings</summary>
 
 <p>
 
 ```
-{3}
+{3}{4}
 ```
 
 </p>

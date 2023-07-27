@@ -29,6 +29,9 @@ export interface IInterpreterSelector extends Disposable {
         suggestions: IInterpreterQuickPickItem[],
         resource: Resource,
     ): IInterpreterQuickPickItem | undefined;
+    /**
+     * @deprecated Only exists for old Jupyter integration.
+     */
     getAllSuggestions(resource: Resource): Promise<IInterpreterQuickPickItem[]>;
     getSuggestions(resource: Resource, useFullDisplayName?: boolean): IInterpreterQuickPickItem[];
     suggestionToQuickPickItem(
@@ -49,11 +52,7 @@ export interface IInterpreterQuickPickItem extends QuickPickItem {
     interpreter: PythonEnvironment;
 }
 
-export interface ISpecialQuickPickItem {
-    label: string;
-    description?: string;
-    detail?: string;
-    alwaysShow: boolean;
+export interface ISpecialQuickPickItem extends QuickPickItem {
     path?: string;
 }
 
@@ -61,4 +60,33 @@ export const IInterpreterComparer = Symbol('IInterpreterComparer');
 export interface IInterpreterComparer {
     compare(a: PythonEnvironment, b: PythonEnvironment): number;
     getRecommended(interpreters: PythonEnvironment[], resource: Resource): PythonEnvironment | undefined;
+}
+
+export interface InterpreterQuickPickParams {
+    /**
+     * Specify `null` if a placeholder is not required.
+     */
+    placeholder?: string | null;
+    /**
+     * Specify `null` if a title is not required.
+     */
+    title?: string | null;
+    /**
+     * Specify `true` to skip showing recommended python interpreter.
+     */
+    skipRecommended?: boolean;
+
+    /**
+     * Specify `true` to show back button.
+     */
+    showBackButton?: boolean;
+}
+
+export const IInterpreterQuickPick = Symbol('IInterpreterQuickPick');
+export interface IInterpreterQuickPick {
+    getInterpreterViaQuickPick(
+        workspace: Resource,
+        filter?: (i: PythonEnvironment) => boolean,
+        params?: InterpreterQuickPickParams,
+    ): Promise<string | undefined>;
 }

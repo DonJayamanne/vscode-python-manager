@@ -6,14 +6,14 @@ import { ConfigurationTarget, Disposable, Uri } from 'vscode';
 import { IExtensionActivationService } from '../../activation/types';
 import { IApplicationShell } from '../../common/application/types';
 import { IDisposableRegistry, IPersistentStateFactory } from '../../common/types';
-import { sleep } from '../../common/utils/async';
 import { Common, Interpreters } from '../../common/utils/localize';
-import { traceDecoratorError } from '../../logging';
+import { traceDecoratorError, traceVerbose } from '../../logging';
+import { isCreatingEnvironment } from '../../pythonEnvironments/creation/createEnvApi';
 import { PythonEnvironment } from '../../pythonEnvironments/info';
 import { sendTelemetryEvent } from '../../telemetry';
 import { EventName } from '../../telemetry/constants';
 import { IPythonPathUpdaterServiceManager } from '../configuration/types';
-import { IComponentAdapter, IInterpreterHelper } from '../contracts';
+import { IComponentAdapter, IInterpreterHelper, IInterpreterService } from '../contracts';
 
 const doNotDisplayPromptStateKey = 'MESSAGE_KEY_FOR_VIRTUAL_ENV';
 @injectable()
@@ -28,6 +28,7 @@ export class VirtualEnvironmentPrompt implements IExtensionActivationService {
         @inject(IDisposableRegistry) private readonly disposableRegistry: Disposable[],
         @inject(IApplicationShell) private readonly appShell: IApplicationShell,
         @inject(IComponentAdapter) private readonly pyenvs: IComponentAdapter,
+        @inject(IInterpreterService) private readonly interpreterService: IInterpreterService,
     ) {}
 
     public async activate(resource: Uri): Promise<void> {
@@ -37,14 +38,20 @@ export class VirtualEnvironmentPrompt implements IExtensionActivationService {
 
     @traceDecoratorError('Error in event handler for detection of new environment')
     protected async handleNewEnvironment(resource: Uri): Promise<void> {
-        // Wait for a while, to ensure environment gets created and is accessible (as this is slow on Windows)
-        await sleep(1000);
+        if (isCreatingEnvironment()) {
+            return;
+        }
         const interpreters = await this.pyenvs.getWorkspaceVirtualEnvInterpreters(resource);
         const interpreter =
             Array.isArray(interpreters) && interpreters.length > 0
                 ? this.helper.getBestInterpreter(interpreters)
                 : undefined;
         if (!interpreter) {
+            return;
+        }
+        const currentInterpreter = await this.interpreterService.getActiveInterpreter(resource);
+        if (currentInterpreter?.id === interpreter.id) {
+            traceVerbose('New environment has already been selected');
             return;
         }
         await this.notifyUser(interpreter, resource);
@@ -58,12 +65,9 @@ export class VirtualEnvironmentPrompt implements IExtensionActivationService {
         if (!notificationPromptEnabled.value) {
             return;
         }
-        const prompts = [Common.bannerLabelYes(), Common.bannerLabelNo(), Common.doNotShowAgain()];
+        const prompts = [Common.bannerLabelYes, Common.bannerLabelNo, Common.doNotShowAgain];
         const telemetrySelections: ['Yes', 'No', 'Ignore'] = ['Yes', 'No', 'Ignore'];
-        const selection = await this.appShell.showInformationMessage(
-            Interpreters.environmentPromptMessage(),
-            ...prompts,
-        );
+        const selection = await this.appShell.showInformationMessage(Interpreters.environmentPromptMessage, ...prompts);
         sendTelemetryEvent(EventName.PYTHON_INTERPRETER_ACTIVATE_ENVIRONMENT_PROMPT, undefined, {
             selection: selection ? telemetrySelections[prompts.indexOf(selection)] : undefined,
         });

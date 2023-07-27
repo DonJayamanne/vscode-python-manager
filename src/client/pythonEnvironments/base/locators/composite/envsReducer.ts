@@ -6,13 +6,24 @@ import { Event, EventEmitter } from 'vscode';
 import { traceVerbose } from '../../../../logging';
 import { PythonEnvKind } from '../../info';
 import { areSameEnv } from '../../info/env';
-import { BasicEnvInfo, ILocator, IPythonEnvsIterator, PythonEnvUpdatedEvent, PythonLocatorQuery } from '../../locator';
+import { getPrioritizedEnvKinds } from '../../info/envKind';
+import {
+    BasicEnvInfo,
+    ICompositeLocator,
+    ILocator,
+    IPythonEnvsIterator,
+    isProgressEvent,
+    ProgressNotificationEvent,
+    ProgressReportStage,
+    PythonEnvUpdatedEvent,
+    PythonLocatorQuery,
+} from '../../locator';
 import { PythonEnvsChangedEvent } from '../../watcher';
 
 /**
  * Combines duplicate environments received from the incoming locator into one and passes on unique environments
  */
-export class PythonEnvsReducer implements ILocator<BasicEnvInfo> {
+export class PythonEnvsReducer implements ICompositeLocator<BasicEnvInfo> {
     public get onChanged(): Event<PythonEnvsChangedEvent> {
         return this.parentLocator.onChanged;
     }
@@ -20,7 +31,7 @@ export class PythonEnvsReducer implements ILocator<BasicEnvInfo> {
     constructor(private readonly parentLocator: ILocator<BasicEnvInfo>) {}
 
     public iterEnvs(query?: PythonLocatorQuery): IPythonEnvsIterator<BasicEnvInfo> {
-        const didUpdate = new EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | null>();
+        const didUpdate = new EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | ProgressNotificationEvent>();
         const incomingIterator = this.parentLocator.iterEnvs(query);
         const iterator = iterEnvsIterator(incomingIterator, didUpdate);
         iterator.onUpdated = didUpdate.event;
@@ -30,7 +41,7 @@ export class PythonEnvsReducer implements ILocator<BasicEnvInfo> {
 
 async function* iterEnvsIterator(
     iterator: IPythonEnvsIterator<BasicEnvInfo>,
-    didUpdate: EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | null>,
+    didUpdate: EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | ProgressNotificationEvent>,
 ): IPythonEnvsIterator<BasicEnvInfo> {
     const state = {
         done: false,
@@ -41,9 +52,13 @@ async function* iterEnvsIterator(
     if (iterator.onUpdated !== undefined) {
         const listener = iterator.onUpdated((event) => {
             state.pending += 1;
-            if (event === null) {
-                state.done = true;
-                listener.dispose();
+            if (isProgressEvent(event)) {
+                if (event.stage === ProgressReportStage.discoveryFinished) {
+                    state.done = true;
+                    listener.dispose();
+                } else {
+                    didUpdate.fire(event);
+                }
             } else if (event.update === undefined) {
                 throw new Error(
                     'Unsupported behavior: `undefined` environment updates are not supported from downstream locators in reducer',
@@ -59,6 +74,8 @@ async function* iterEnvsIterator(
             state.pending -= 1;
             checkIfFinishedAndNotify(state, didUpdate);
         });
+    } else {
+        didUpdate.fire({ stage: ProgressReportStage.discoveryStarted });
     }
 
     let result = await iterator.next();
@@ -84,7 +101,7 @@ async function resolveDifferencesInBackground(
     oldIndex: number,
     newEnv: BasicEnvInfo,
     state: { done: boolean; pending: number },
-    didUpdate: EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | null>,
+    didUpdate: EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | ProgressNotificationEvent>,
     seen: BasicEnvInfo[],
 ) {
     state.pending += 1;
@@ -107,11 +124,12 @@ async function resolveDifferencesInBackground(
  */
 function checkIfFinishedAndNotify(
     state: { done: boolean; pending: number },
-    didUpdate: EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | null>,
+    didUpdate: EventEmitter<PythonEnvUpdatedEvent<BasicEnvInfo> | ProgressNotificationEvent>,
 ) {
     if (state.done && state.pending === 0) {
-        didUpdate.fire(null);
+        didUpdate.fire({ stage: ProgressReportStage.discoveryFinished });
         didUpdate.dispose();
+        traceVerbose(`Finished with environment reducer`);
     }
 }
 
@@ -129,50 +147,8 @@ function resolveEnvCollision(oldEnv: BasicEnvInfo, newEnv: BasicEnvInfo): BasicE
 function sortEnvInfoByPriority(...envs: BasicEnvInfo[]): BasicEnvInfo[] {
     // TODO: When we consolidate the PythonEnvKind and EnvironmentType we should have
     // one location where we define priority.
-    const envKindByPriority: PythonEnvKind[] = getPrioritizedEnvironmentKind();
+    const envKindByPriority: PythonEnvKind[] = getPrioritizedEnvKinds();
     return envs.sort(
         (a: BasicEnvInfo, b: BasicEnvInfo) => envKindByPriority.indexOf(a.kind) - envKindByPriority.indexOf(b.kind),
     );
-}
-
-/**
- * Gets a prioritized list of environment types for identification.
- * @returns {PythonEnvKind[]} : List of environments ordered by identification priority
- *
- * Remarks: This is the order of detection based on how the various distributions and tools
- * configure the environment, and the fall back for identification.
- * Top level we have the following environment types, since they leave a unique signature
- * in the environment or * use a unique path for the environments they create.
- *  1. Pyenv (pyenv can also be a conda env or venv, but should be activated as a venv)
- *  2. Conda
- *  3. Windows Store
- *  4. PipEnv
- *  5. Poetry
- *
- * Next level we have the following virtual environment tools. The are here because they
- * are consumed by the tools above, and can also be used independently.
- *  1. venv
- *  2. virtualenvwrapper
- *  3. virtualenv
- *
- * Last category is globally installed python, or system python.
- */
-function getPrioritizedEnvironmentKind(): PythonEnvKind[] {
-    return [
-        PythonEnvKind.Pyenv,
-        PythonEnvKind.CondaBase,
-        PythonEnvKind.Conda,
-        PythonEnvKind.WindowsStore,
-        PythonEnvKind.Pipenv,
-        PythonEnvKind.Poetry,
-        PythonEnvKind.Venv,
-        PythonEnvKind.VirtualEnvWrapper,
-        PythonEnvKind.VirtualEnv,
-        PythonEnvKind.OtherVirtual,
-        PythonEnvKind.OtherGlobal,
-        PythonEnvKind.MacDefault,
-        PythonEnvKind.System,
-        PythonEnvKind.Custom,
-        PythonEnvKind.Unknown,
-    ];
 }

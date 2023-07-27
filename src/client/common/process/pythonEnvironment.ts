@@ -2,18 +2,20 @@
 // Licensed under the MIT License.
 
 import * as path from 'path';
-import { traceError, traceInfo } from '../../logging';
+import { traceError, traceVerbose } from '../../logging';
 import { Conda, CondaEnvironmentInfo } from '../../pythonEnvironments/common/environmentManagers/conda';
 import { buildPythonExecInfo, PythonExecInfo } from '../../pythonEnvironments/exec';
 import { InterpreterInformation } from '../../pythonEnvironments/info';
 import { getExecutablePath } from '../../pythonEnvironments/info/executable';
 import { getInterpreterInfo } from '../../pythonEnvironments/info/interpreter';
+import { isTestExecution } from '../constants';
 import { IFileSystem } from '../platform/types';
 import * as internalPython from './internal/python';
 import { ExecutionResult, IProcessService, IPythonEnvironment, ShellOptions, SpawnOptions } from './types';
 
+const cachedExecutablePath: Map<string, Promise<string | undefined>> = new Map<string, Promise<string | undefined>>();
+
 class PythonEnvironment implements IPythonEnvironment {
-    private cachedExecutablePath: Map<string, Promise<string>> = new Map<string, Promise<string>>();
     private cachedInterpreterInformation: InterpreterInformation | undefined | null = null;
 
     constructor(
@@ -45,20 +47,20 @@ class PythonEnvironment implements IPythonEnvironment {
         return this.cachedInterpreterInformation;
     }
 
-    public async getExecutablePath(): Promise<string> {
+    public async getExecutablePath(): Promise<string | undefined> {
         // If we've passed the python file, then return the file.
         // This is because on mac if using the interpreter /usr/bin/python2.7 we can get a different value for the path
         if (await this.deps.isValidExecutable(this.pythonPath)) {
             return this.pythonPath;
         }
-        const result = this.cachedExecutablePath.get(this.pythonPath);
-        if (result !== undefined) {
+        const result = cachedExecutablePath.get(this.pythonPath);
+        if (result !== undefined && !isTestExecution()) {
             // Another call for this environment has already been made, return its result
             return result;
         }
         const python = this.getExecutionInfo();
         const promise = getExecutablePath(python, this.deps.shellExec);
-        this.cachedExecutablePath.set(this.pythonPath, promise);
+        cachedExecutablePath.set(this.pythonPath, promise);
         return promise;
     }
 
@@ -69,7 +71,7 @@ class PythonEnvironment implements IPythonEnvironment {
         try {
             data = await this.deps.exec(info.command, info.args);
         } catch (ex) {
-            traceInfo(`Error when getting version of module ${moduleName}`, ex);
+            traceVerbose(`Error when getting version of module ${moduleName}`, ex);
             return undefined;
         }
         return parse(data.stdout);
@@ -82,7 +84,7 @@ class PythonEnvironment implements IPythonEnvironment {
         try {
             await this.deps.exec(info.command, info.args);
         } catch (ex) {
-            traceInfo(`Error when checking if module is installed ${moduleName}`, ex);
+            traceVerbose(`Error when checking if module is installed ${moduleName}`, ex);
             return false;
         }
         return true;
@@ -91,7 +93,7 @@ class PythonEnvironment implements IPythonEnvironment {
     private async getInterpreterInformationImpl(): Promise<InterpreterInformation | undefined> {
         try {
             const python = this.getExecutionInfo();
-            return await getInterpreterInfo(python, this.deps.shellExec, { info: traceInfo, error: traceError });
+            return await getInterpreterInfo(python, this.deps.shellExec, { verbose: traceVerbose, error: traceError });
         } catch (ex) {
             traceError(`Failed to get interpreter information for '${this.pythonPath}'`, ex);
         }
@@ -171,18 +173,18 @@ export async function createCondaEnv(
     return new PythonEnvironment(interpreterPath, deps);
 }
 
-export function createWindowsStoreEnv(
+export function createMicrosoftStoreEnv(
     pythonPath: string,
     // These are used to generate the deps.
     procs: IProcessService,
 ): PythonEnvironment {
     const deps = createDeps(
         /**
-         * With windows store python apps, we have generally use the
+         * With microsoft store python apps, we have generally use the
          * symlinked python executable.  The actual file is not accessible
          * by the user due to permission issues (& rest of exension fails
          * when using that executable).  Hence lets not resolve the
-         * executable using sys.executable for windows store python
+         * executable using sys.executable for microsoft store python
          * interpreters.
          */
         async (_f: string) => true,

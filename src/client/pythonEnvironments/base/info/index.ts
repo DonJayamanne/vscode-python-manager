@@ -12,11 +12,10 @@ export enum PythonEnvKind {
     Unknown = 'unknown',
     // "global"
     System = 'global-system',
-    MacDefault = 'global-mac-default',
-    WindowsStore = 'global-windows-store',
+    MicrosoftStore = 'global-microsoft-store',
     Pyenv = 'global-pyenv',
-    CondaBase = 'global-conda-base',
-    Poetry = 'global-poetry',
+    Poetry = 'poetry',
+    ActiveState = 'activestate',
     Custom = 'global-custom',
     OtherGlobal = 'global-other',
     // "virtual"
@@ -26,6 +25,11 @@ export enum PythonEnvKind {
     Pipenv = 'virt-pipenv',
     Conda = 'virt-conda',
     OtherVirtual = 'virt-other',
+}
+
+export enum PythonEnvType {
+    Conda = 'Conda',
+    Virtual = 'Virtual',
 }
 
 export interface EnvPathType {
@@ -50,7 +54,7 @@ export const virtualEnvKinds = [
 export const globallyInstalledEnvKinds = [
     PythonEnvKind.OtherGlobal,
     PythonEnvKind.Unknown,
-    PythonEnvKind.WindowsStore,
+    PythonEnvKind.MicrosoftStore,
     PythonEnvKind.System,
     PythonEnvKind.Custom,
 ];
@@ -107,6 +111,7 @@ export enum PythonEnvSource {
 type PythonEnvBaseInfo = {
     id?: string;
     kind: PythonEnvKind;
+    type?: PythonEnvType;
     executable: PythonExecutableInfo;
     // One of (name, location) must be non-empty.
     name: string;

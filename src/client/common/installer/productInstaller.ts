@@ -2,7 +2,7 @@
 
 import { inject, injectable } from 'inversify';
 import * as semver from 'semver';
-import { CancellationToken, Uri } from 'vscode';
+import { CancellationToken, l10n, Uri } from 'vscode';
 import '../extensions';
 import { IInterpreterService } from '../../interpreter/contracts';
 import { IServiceContainer } from '../../ioc/types';
@@ -324,7 +324,14 @@ export class DataScienceInstaller extends BaseInstaller {
         const installerModule: IModuleInstaller | undefined = channels.find((v) => v.type === requiredInstaller);
 
         if (!installerModule) {
-            this.appShell.showErrorMessage(Installer.couldNotInstallLibrary().format(moduleName)).then(noop, noop);
+            this.appShell
+                .showErrorMessage(
+                    l10n.t(
+                        'Could not install {0}. If pip is not available, please use the package manager of your choice to manually install this library into your Python environment.',
+                        moduleName,
+                    ),
+                )
+                .then(noop, noop);
             sendTelemetryEvent(EventName.PYTHON_INSTALL_PACKAGE, undefined, {
                 installer: 'unavailable',
                 requiredInstaller,
@@ -364,11 +371,11 @@ export class DataScienceInstaller extends BaseInstaller {
     ): Promise<InstallerResponse> {
         const productName = ProductNames.get(product)!;
         const item = await this.appShell.showErrorMessage(
-            Installer.dataScienceInstallPrompt().format(productName),
-            'Yes',
-            'No',
+            l10n.t('Data Science library {0} is not installed. Install?', productName),
+            Common.bannerLabelYes,
+            Common.bannerLabelNo,
         );
-        if (item === 'Yes') {
+        if (item === Common.bannerLabelYes) {
             return this.install(product, resource, cancel);
         }
         return InstallerResponse.Ignore;

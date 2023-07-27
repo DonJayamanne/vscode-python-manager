@@ -1,7 +1,15 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import { IDiscoveryAPI, PythonLocatorQuery } from './base/locator';
+import { Event } from 'vscode';
+import {
+    GetRefreshEnvironmentsOptions,
+    IDiscoveryAPI,
+    ProgressNotificationEvent,
+    ProgressReportStage,
+    PythonLocatorQuery,
+    TriggerRefreshOptions,
+} from './base/locator';
 
 export type GetLocatorFunc = () => Promise<IDiscoveryAPI>;
 
@@ -22,12 +30,16 @@ class PythonEnvironments implements IDiscoveryAPI {
         this.locator = await this.getLocator();
     }
 
-    public get onRefreshStart() {
-        return this.locator.onRefreshStart;
+    public get onProgress(): Event<ProgressNotificationEvent> {
+        return this.locator.onProgress;
     }
 
-    public get refreshPromise() {
-        return this.locator.refreshPromise;
+    public get refreshState(): ProgressReportStage {
+        return this.locator.refreshState;
+    }
+
+    public getRefreshPromise(options?: GetRefreshEnvironmentsOptions) {
+        return this.locator.getRefreshPromise(options);
     }
 
     public get onChanged() {
@@ -42,8 +54,8 @@ class PythonEnvironments implements IDiscoveryAPI {
         return this.locator.resolveEnv(env);
     }
 
-    public async triggerRefresh(query?: PythonLocatorQuery) {
-        return this.locator.triggerRefresh(query);
+    public async triggerRefresh(query?: PythonLocatorQuery, options?: TriggerRefreshOptions) {
+        return this.locator.triggerRefresh(query, options);
     }
 }
 

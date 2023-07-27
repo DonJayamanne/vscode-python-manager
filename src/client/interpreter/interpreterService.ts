@@ -22,19 +22,15 @@ export class InterpreterService implements Disposable, IInterpreterService {
         return this.pyenvs.hasInterpreters(filter);
     }
 
-    public get onRefreshStart(): Event<void> {
-        return this.pyenvs.onRefreshStart;
-    }
-
-    public triggerRefresh(query?: PythonLocatorQuery & { clearCache?: boolean }): Promise<void> {
-        return this.pyenvs.triggerRefresh(query);
+    public triggerRefresh(query?: PythonLocatorQuery, options?: TriggerRefreshOptions): Promise<void> {
+        return this.pyenvs.triggerRefresh(query, options);
     }
 
     public get refreshPromise(): Promise<void> | undefined {
-        return this.pyenvs.refreshPromise;
+        return this.pyenvs.getRefreshPromise();
     }
 
-    public get onDidChangeInterpreter(): Event<void> {
+    public get onDidChangeInterpreter(): Event<Uri | undefined> {
         return this.didChangeInterpreterEmitter.event;
     }
 
@@ -56,7 +52,7 @@ export class InterpreterService implements Disposable, IInterpreterService {
 
     private readonly interpreterPathService: IInterpreterPathService;
 
-    private readonly didChangeInterpreterEmitter = new EventEmitter<void>();
+    private readonly didChangeInterpreterEmitter = new EventEmitter<Uri | undefined>();
 
     private readonly didChangeInterpreterInformation = new EventEmitter<PythonEnvironment>();
 
@@ -92,6 +88,10 @@ export class InterpreterService implements Disposable, IInterpreterService {
     }
 
     public async getAllInterpreters(resource?: Uri): Promise<PythonEnvironment[]> {
+        // For backwards compatibility with old Jupyter APIs, ensure a
+        // fresh refresh is always triggered when using the API. As it is
+        // no longer auto-triggered by the extension.
+        this.triggerRefresh(undefined, { ifNotTriggerredAlready: true }).ignoreErrors();
         await this.refreshPromise;
         return this.getInterpreters(resource);
     }
@@ -121,7 +121,6 @@ export class InterpreterService implements Disposable, IInterpreterService {
             if (!fullyQualifiedPath) {
                 return undefined;
             }
-            path = fullyQualifiedPath;
         }
         return this.getInterpreterDetails(path);
     }
@@ -131,15 +130,22 @@ export class InterpreterService implements Disposable, IInterpreterService {
     }
 
     public async _onConfigChanged(resource?: Uri): Promise<void> {
-        this.didChangeInterpreterConfigurationEmitter.fire(resource);
-        // Check if we actually changed our python path
+        // Check if we actually changed our python path.
+        // Config service also updates itself on interpreter config change,
+        // so yielding control here to make sure it goes first and updates
+        // itself before we can query it.
+        await sleep(1);
         const pySettings = this.configService.getSettings(resource);
+        this.didChangeInterpreterConfigurationEmitter.fire(resource);
         if (this._pythonPathSetting === '' || this._pythonPathSetting !== pySettings.pythonPath) {
             this._pythonPathSetting = pySettings.pythonPath;
-            this.didChangeInterpreterEmitter.fire();
+            this.didChangeInterpreterEmitter.fire(resource);
+            const workspaceFolder = this.serviceContainer
+                .get<IWorkspaceService>(IWorkspaceService)
+                .getWorkspaceFolder(resource);
             reportActiveInterpreterChanged({
                 path: pySettings.pythonPath,
-                resource,
+                resource: workspaceFolder,
             });
         }
     }

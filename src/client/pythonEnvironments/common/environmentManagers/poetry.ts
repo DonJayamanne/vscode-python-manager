@@ -19,6 +19,7 @@ import { StopWatch } from '../../../common/utils/stopWatch';
 import { cache } from '../../../common/utils/decorators';
 import { isTestExecution } from '../../../common/constants';
 import { traceError, traceVerbose } from '../../../logging';
+import { splitLines } from '../../../common/stringUtils';
 
 /**
  * Global virtual env dir for a project is named as:
@@ -142,10 +143,14 @@ export class Poetry {
         traceVerbose(`Getting poetry for cwd ${cwd}`);
         // Produce a list of candidate binaries to be probed by exec'ing them.
         function* getCandidates() {
-            const customPoetryPath = getPythonSetting<string>('poetryPath');
-            if (customPoetryPath && customPoetryPath !== 'poetry') {
-                // If user has specified a custom poetry path, use it first.
-                yield customPoetryPath;
+            try {
+                const customPoetryPath = getPythonSetting<string>('poetryPath');
+                if (customPoetryPath && customPoetryPath !== 'poetry') {
+                    // If user has specified a custom poetry path, use it first.
+                    yield customPoetryPath;
+                }
+            } catch (ex) {
+                traceError(`Failed to get poetry setting`, ex);
             }
             // Check unqualified filename, in case it's on PATH.
             yield 'poetry';
@@ -209,7 +214,7 @@ export class Poetry {
          */
         const activated = '(Activated)';
         const res = await Promise.all(
-            result.stdout.splitLines().map(async (line) => {
+            splitLines(result.stdout).map(async (line) => {
                 if (line.endsWith(activated)) {
                     line = line.slice(0, -activated.length);
                 }

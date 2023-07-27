@@ -2,12 +2,13 @@
 // Licensed under the MIT License.
 
 import { PythonExecutableInfo, PythonVersion } from '.';
+import { isCI } from '../../../common/constants';
 import {
     interpreterInfo as getInterpreterInfoCommand,
     InterpreterInfoJson,
 } from '../../../common/process/internal/scripts';
 import { Architecture } from '../../../common/utils/platform';
-import { traceError, traceInfo } from '../../../logging';
+import { traceError, traceVerbose } from '../../../logging';
 import { shellExecute } from '../../common/externalDependencies';
 import { copyPythonExecInfo, PythonExecInfo } from '../../exec';
 import { parseVersion } from './pythonVersion';
@@ -80,22 +81,27 @@ export async function getInterpreterInfo(
         '',
     );
 
+    // Sometimes on CI, the python process takes a long time to start up. This is a workaround for that.
+    const standardTimeout = isCI ? 30000 : 15000;
     // Try shell execing the command, followed by the arguments. This will make node kill the process if it
     // takes too long.
     // Sometimes the python path isn't valid, timeout if that's the case.
     // See these two bugs:
     // https://github.com/microsoft/vscode-python/issues/7569
     // https://github.com/microsoft/vscode-python/issues/7760
-    const result = await shellExecute(quoted, { timeout: timeout ?? 15000 });
+    const result = await shellExecute(quoted, { timeout: timeout ?? standardTimeout });
     if (result.stderr) {
         traceError(
-            `Stderr when executing script with ${argv} stderr: ${result.stderr}, still attempting to parse output`,
+            `Stderr when executing script with >> ${quoted} << stderr: ${result.stderr}, still attempting to parse output`,
         );
     }
-    const json = parse(result.stdout);
-    if (!json) {
+    let json: InterpreterInfoJson;
+    try {
+        json = parse(result.stdout);
+    } catch (ex) {
+        traceError(`Failed to parse interpreter information for >> ${quoted} << with ${ex}`);
         return undefined;
     }
-    traceInfo(`Found interpreter for ${argv}`);
+    traceVerbose(`Found interpreter for >> ${quoted} <<: ${JSON.stringify(json)}`);
     return extractInterpreterInfo(python.pythonExecutable, json);
 }

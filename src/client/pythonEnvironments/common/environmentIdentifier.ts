@@ -14,7 +14,8 @@ import {
     isVirtualenvEnvironment as isVirtualEnvEnvironment,
     isVirtualenvwrapperEnvironment as isVirtualEnvWrapperEnvironment,
 } from './environmentManagers/simplevirtualenvs';
-import { isWindowsStoreEnvironment } from './environmentManagers/windowsStoreEnv';
+import { isMicrosoftStoreEnvironment } from './environmentManagers/microsoftStoreEnv';
+import { isActiveStateEnvironment } from './environmentManagers/activestate';
 
 function getIdentifiers(): Map<PythonEnvKind, (path: string) => Promise<boolean>> {
     const notImplemented = () => Promise.resolve(false);
@@ -25,13 +26,14 @@ function getIdentifiers(): Map<PythonEnvKind, (path: string) => Promise<boolean>
     });
 
     identifier.set(PythonEnvKind.Conda, isCondaEnvironment);
-    identifier.set(PythonEnvKind.WindowsStore, isWindowsStoreEnvironment);
+    identifier.set(PythonEnvKind.MicrosoftStore, isMicrosoftStoreEnvironment);
     identifier.set(PythonEnvKind.Pipenv, isPipenvEnvironment);
     identifier.set(PythonEnvKind.Pyenv, isPyenvEnvironment);
     identifier.set(PythonEnvKind.Poetry, isPoetryEnvironment);
     identifier.set(PythonEnvKind.Venv, isVenvEnvironment);
     identifier.set(PythonEnvKind.VirtualEnvWrapper, isVirtualEnvWrapperEnvironment);
     identifier.set(PythonEnvKind.VirtualEnv, isVirtualEnvEnvironment);
+    identifier.set(PythonEnvKind.ActiveState, isActiveStateEnvironment);
     identifier.set(PythonEnvKind.Unknown, defaultTrue);
     identifier.set(PythonEnvKind.OtherGlobal, isGloballyInstalledEnv);
     return identifier;

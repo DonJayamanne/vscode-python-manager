@@ -244,6 +244,28 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Listen",
+            "type": "python",
+            "request": "attach",
+            "listen": { "host": "localhost", "port": 5678 },
+            "justMyCode": true
+        },
+        {
+            "name": "Debug pytest plugin tests",
+
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["${workspaceFolder}/pythonFiles/tests/pytestadapter"],
+            "justMyCode": true
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug Test Discovery",
+            "configurations": ["Listen", "Extension"]
         }
     ]
 }

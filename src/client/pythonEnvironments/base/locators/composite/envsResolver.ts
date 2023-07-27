@@ -5,20 +5,23 @@ import { cloneDeep } from 'lodash';
 import { Event, EventEmitter } from 'vscode';
 import { identifyEnvironment } from '../../../common/environmentIdentifier';
 import { IEnvironmentInfoService } from '../../info/environmentInfoService';
-import { PythonEnvInfo } from '../../info';
+import { PythonEnvInfo, PythonEnvKind } from '../../info';
 import { getEnvPath, setEnvDisplayString } from '../../info/env';
 import { InterpreterInformation } from '../../info/interpreter';
 import {
     BasicEnvInfo,
-    ILocator,
+    ICompositeLocator,
     IPythonEnvsIterator,
     IResolvingLocator,
+    isProgressEvent,
+    ProgressNotificationEvent,
+    ProgressReportStage,
     PythonEnvUpdatedEvent,
     PythonLocatorQuery,
 } from '../../locator';
 import { PythonEnvsChangedEvent } from '../../watcher';
 import { resolveBasicEnv } from './resolverUtils';
-import { traceVerbose } from '../../../../logging';
+import { traceVerbose, traceWarn } from '../../../../logging';
 import { getEnvironmentDirFromPath, getInterpreterPathFromDir, isPythonExecutable } from '../../../common/commonUtils';
 import { getEmptyVersion } from '../../info/pythonVersion';
 
@@ -32,9 +35,16 @@ export class PythonEnvsResolver implements IResolvingLocator {
     }
 
     constructor(
-        private readonly parentLocator: ILocator<BasicEnvInfo>,
+        private readonly parentLocator: ICompositeLocator<BasicEnvInfo>,
         private readonly environmentInfoService: IEnvironmentInfoService,
-    ) {}
+    ) {
+        this.parentLocator.onChanged((event) => {
+            if (event.type && event.searchLocation !== undefined) {
+                // We detect an environment changed, reset any stored info for it so it can be re-run.
+                this.environmentInfoService.resetInfo(event.searchLocation);
+            }
+        });
+    }
 
     public async resolveEnv(path: string): Promise<PythonEnvInfo | undefined> {
         const [executablePath, envPath] = await getExecutablePathAndEnvPath(path);
@@ -42,6 +52,9 @@ export class PythonEnvsResolver implements IResolvingLocator {
         const kind = await identifyEnvironment(path);
         const environment = await resolveBasicEnv({ kind, executablePath, envPath });
         const info = await this.environmentInfoService.getEnvironmentInfo(environment);
+        traceVerbose(
+            `Environment resolver resolved ${path} for ${JSON.stringify(environment)} to ${JSON.stringify(info)}`,
+        );
         if (!info) {
             return undefined;
         }
@@ -49,7 +62,7 @@ export class PythonEnvsResolver implements IResolvingLocator {
     }
 
     public iterEnvs(query?: PythonLocatorQuery): IPythonEnvsIterator {
-        const didUpdate = new EventEmitter<PythonEnvUpdatedEvent | null>();
+        const didUpdate = new EventEmitter<PythonEnvUpdatedEvent | ProgressNotificationEvent>();
         const incomingIterator = this.parentLocator.iterEnvs(query);
         const iterator = this.iterEnvsIterator(incomingIterator, didUpdate);
         iterator.onUpdated = didUpdate.event;
@@ -58,8 +71,9 @@ export class PythonEnvsResolver implements IResolvingLocator {
 
     private async *iterEnvsIterator(
         iterator: IPythonEnvsIterator<BasicEnvInfo>,
-        didUpdate: EventEmitter<PythonEnvUpdatedEvent | null>,
+        didUpdate: EventEmitter<PythonEnvUpdatedEvent | ProgressNotificationEvent>,
     ): IPythonEnvsIterator {
+        const environmentKinds = new Map<string, PythonEnvKind>();
         const state = {
             done: false,
             pending: 0,
@@ -69,16 +83,22 @@ export class PythonEnvsResolver implements IResolvingLocator {
         if (iterator.onUpdated !== undefined) {
             const listener = iterator.onUpdated(async (event) => {
                 state.pending += 1;
-                if (event === null) {
-                    state.done = true;
-                    listener.dispose();
+                if (isProgressEvent(event)) {
+                    if (event.stage === ProgressReportStage.discoveryFinished) {
+                        didUpdate.fire({ stage: ProgressReportStage.allPathsDiscovered });
+                        state.done = true;
+                        listener.dispose();
+                    } else {
+                        didUpdate.fire(event);
+                    }
                 } else if (event.update === undefined) {
                     throw new Error(
                         'Unsupported behavior: `undefined` environment updates are not supported from downstream locators in resolver',
                     );
                 } else if (seen[event.index] !== undefined) {
                     const old = seen[event.index];
-                    seen[event.index] = await resolveBasicEnv(event.update, true);
+                    await setKind(event.update, environmentKinds);
+                    seen[event.index] = await resolveBasicEnv(event.update);
                     didUpdate.fire({ old, index: event.index, update: seen[event.index] });
                     this.resolveInBackground(event.index, state, didUpdate, seen).ignoreErrors();
                 } else {
@@ -88,12 +108,15 @@ export class PythonEnvsResolver implements IResolvingLocator {
                 state.pending -= 1;
                 checkIfFinishedAndNotify(state, didUpdate);
             });
+        } else {
+            didUpdate.fire({ stage: ProgressReportStage.discoveryStarted });
         }
 
         let result = await iterator.next();
         while (!result.done) {
             // Use cache from the current refresh where possible.
-            const currEnv = await resolveBasicEnv(result.value, true);
+            await setKind(result.value, environmentKinds);
+            const currEnv = await resolveBasicEnv(result.value);
             seen.push(currEnv);
             yield currEnv;
             this.resolveInBackground(seen.indexOf(currEnv), state, didUpdate, seen).ignoreErrors();
@@ -108,7 +131,7 @@ export class PythonEnvsResolver implements IResolvingLocator {
     private async resolveInBackground(
         envIndex: number,
         state: { done: boolean; pending: number },
-        didUpdate: EventEmitter<PythonEnvUpdatedEvent | null>,
+        didUpdate: EventEmitter<PythonEnvUpdatedEvent | ProgressNotificationEvent>,
         seen: PythonEnvInfo[],
     ) {
         state.pending += 1;
@@ -129,6 +152,16 @@ export class PythonEnvsResolver implements IResolvingLocator {
     }
 }
 
+async function setKind(env: BasicEnvInfo, environmentKinds: Map<string, PythonEnvKind>) {
+    const { path } = getEnvPath(env.executablePath, env.envPath);
+    let kind = environmentKinds.get(path);
+    if (!kind) {
+        kind = await identifyEnvironment(path);
+        environmentKinds.set(path, kind);
+    }
+    env.kind = kind;
+}
+
 /**
  * When all info from incoming iterator has been received and all background calls finishes, notify that we're done
  * @param state Carries the current state of progress
@@ -136,18 +169,18 @@ export class PythonEnvsResolver implements IResolvingLocator {
  */
 function checkIfFinishedAndNotify(
     state: { done: boolean; pending: number },
-    didUpdate: EventEmitter<PythonEnvUpdatedEvent | null>,
+    didUpdate: EventEmitter<PythonEnvUpdatedEvent | ProgressNotificationEvent>,
 ) {
     if (state.done && state.pending === 0) {
-        didUpdate.fire(null);
+        didUpdate.fire({ stage: ProgressReportStage.discoveryFinished });
         didUpdate.dispose();
+        traceVerbose(`Finished with environment resolver`);
     }
 }
 
 function getResolvedEnv(interpreterInfo: InterpreterInformation, environment: PythonEnvInfo) {
     // Deep copy into a new object
     const resolvedEnv = cloneDeep(environment);
-    resolvedEnv.executable.filename = interpreterInfo.executable.filename;
     resolvedEnv.executable.sysPrefix = interpreterInfo.executable.sysPrefix;
     const isEnvLackingPython =
         getEnvPath(resolvedEnv.executable.filename, resolvedEnv.location).pathType === 'envFolderPath';
@@ -167,7 +200,14 @@ function getResolvedEnv(interpreterInfo: InterpreterInformation, environment: Py
 async function getExecutablePathAndEnvPath(path: string) {
     let executablePath: string;
     let envPath: string;
-    const isPathAnExecutable = await isPythonExecutable(path);
+    const isPathAnExecutable = await isPythonExecutable(path).catch((ex) => {
+        traceWarn('Failed to check if', path, 'is an executable', ex);
+        // This could happen if the path doesn't exist on a file system, but
+        // it still maybe the case that it's a valid file when run using a
+        // shell, as shells may resolve the file extensions before running it,
+        // so assume it to be an executable.
+        return true;
+    });
     if (isPathAnExecutable) {
         executablePath = path;
         envPath = getEnvironmentDirFromPath(executablePath);

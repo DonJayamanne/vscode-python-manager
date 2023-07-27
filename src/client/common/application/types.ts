@@ -16,6 +16,7 @@ import {
     DebugConsole,
     DebugSession,
     DebugSessionCustomEvent,
+    DebugSessionOptions,
     DecorationRenderOptions,
     Disposable,
     DocumentSelector,
@@ -25,10 +26,10 @@ import {
     InputBox,
     InputBoxOptions,
     LanguageStatusItem,
+    LogOutputChannel,
     MessageItem,
     MessageOptions,
     OpenDialogOptions,
-    OutputChannel,
     Progress,
     ProgressOptions,
     QuickPick,
@@ -355,7 +356,7 @@ export interface IApplicationShell {
      * @param priority The priority of the item. Higher values mean the item should be shown more to the left.
      * @return A new status bar item.
      */
-    createStatusBarItem(alignment?: StatusBarAlignment, priority?: number): StatusBarItem;
+    createStatusBarItem(alignment?: StatusBarAlignment, priority?: number, id?: string): StatusBarItem;
     /**
      * Shows a selection list of [workspace folders](#workspace.workspaceFolders) to pick from.
      * Returns `undefined` if no folder is open.
@@ -429,7 +430,7 @@ export interface IApplicationShell {
      *
      * @param name Human-readable string which will be used to represent the channel in the UI.
      */
-    createOutputChannel(name: string): OutputChannel;
+    createOutputChannel(name: string): LogOutputChannel;
     createLanguageStatusItem(id: string, selector: DocumentSelector): LanguageStatusItem;
 }
 
@@ -837,9 +838,10 @@ export interface IWorkspaceService {
      *
      * @param section A dot-separated identifier.
      * @param resource A resource for which the configuration is asked for
+     * @param languageSpecific Should the [python] language-specific settings be obtained?
      * @return The full configuration or a subset.
      */
-    getConfiguration(section?: string, resource?: Uri): WorkspaceConfiguration;
+    getConfiguration(section?: string, resource?: Uri, languageSpecific?: boolean): WorkspaceConfiguration;
 
     /**
      * Opens an untitled text document. The editor will prompt the user for a file
@@ -850,6 +852,16 @@ export interface IWorkspaceService {
      * @return A promise that resolves to a {@link TextDocument document}.
      */
     openTextDocument(options?: { language?: string; content?: string }): Thenable<TextDocument>;
+    /**
+     * Saves the editor identified by the given resource and returns the resulting resource or `undefined`
+     * if save was not successful.
+     *
+     * **Note** that an editor with the provided resource must be opened in order to be saved.
+     *
+     * @param uri the associated uri for the opened editor to save.
+     * @return A thenable that resolves when the save operation has finished.
+     */
+    save(uri: Uri): Thenable<Uri | undefined>;
 }
 
 export const ITerminalManager = Symbol('ITerminalManager');
@@ -964,7 +976,7 @@ export interface IDebugService {
     startDebugging(
         folder: WorkspaceFolder | undefined,
         nameOrConfiguration: string | DebugConfiguration,
-        parentSession?: DebugSession,
+        parentSession?: DebugSession | DebugSessionOptions,
     ): Thenable<boolean>;
 
     /**
@@ -1048,6 +1060,10 @@ export interface IApplicationEnvironment {
      */
     readonly shell: string;
     /**
+     * An {@link Event} which fires when the default shell changes.
+     */
+    readonly onDidChangeShell: Event<string>;
+    /**
      * Gets the vscode channel (whether 'insiders' or 'stable').
      */
     readonly channel: Channel;
@@ -1072,6 +1088,16 @@ export interface IApplicationEnvironment {
      * from a desktop application or a web browser.
      */
     readonly uiKind: UIKind;
+    /**
+     * The name of a remote. Defined by extensions, popular samples are `wsl` for the Windows
+     * Subsystem for Linux or `ssh-remote` for remotes using a secure shell.
+     *
+     * *Note* that the value is `undefined` when there is no remote extension host but that the
+     * value is defined in all extension hosts (local and remote) in case a remote extension host
+     * exists. Use {@link Extension.extensionKind} to know if
+     * a specific extension runs remote or not.
+     */
+    readonly remoteName: string | undefined;
 }
 
 export const ILanguageService = Symbol('ILanguageService');

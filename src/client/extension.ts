@@ -33,7 +33,7 @@ import { IApplicationShell, IWorkspaceService } from './common/application/types
 import { IAsyncDisposableRegistry, IDisposableRegistry, IExtensionContext } from './common/types';
 import { createDeferred } from './common/utils/async';
 import { Common } from './common/utils/localize';
-import { activateComponents } from './extensionActivation';
+import { activateComponents, activateFeatures } from './extensionActivation';
 import { initializeStandard, initializeComponents, initializeGlobals } from './extensionInit';
 import { IServiceContainer } from './ioc/types';
 import { sendErrorTelemetry, sendStartupTelemetry } from './startupTelemetry';
@@ -71,20 +71,14 @@ export async function activate(context: IExtensionContext): Promise<void> {
         .ignoreErrors();
 }
 
-export function deactivate(): Thenable<void> {
+export async function deactivate(): Promise<void> {
     // Make sure to shutdown anybody who needs it.
     if (activatedServiceContainer) {
-        const registry = activatedServiceContainer.get<IAsyncDisposableRegistry>(IAsyncDisposableRegistry);
         const disposables = activatedServiceContainer.get<IDisposableRegistry>(IDisposableRegistry);
-        const promises = Promise.all(disposables.map((d) => d.dispose()));
-        return promises.then(() => {
-            if (registry) {
-                return registry.dispose();
-            }
-        });
+        await disposeAll(disposables);
+        // Remove everything that is already disposed.
+        while (disposables.pop());
     }
-
-    return Promise.resolve();
 }
 
 /////////////////////////////
@@ -114,6 +108,8 @@ async function activateUnsafe(
 
     // Then we finish activating.
     const componentsActivated = await activateComponents(ext, components);
+    activateFeatures(ext, components);
+
     const nonBlocking = componentsActivated.map((r) => r.fullyReady);
     const activationPromise = (async () => {
         await Promise.all(nonBlocking);
@@ -144,7 +140,7 @@ async function activateUnsafe(
 }
 
 function displayProgress(promise: Promise<any>) {
-    const progressOptions: ProgressOptions = { location: ProgressLocation.Window, title: Common.loadingExtension() };
+    const progressOptions: ProgressOptions = { location: ProgressLocation.Window, title: Common.loadingExtension };
     window.withProgress(progressOptions, () => promise);
 }
 

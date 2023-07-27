@@ -23,12 +23,18 @@ import { IInterpreterPathService, IPythonSettings, ITerminalSettings, Resource }
 import { debounceSync } from './utils/decorators';
 import { SystemVariables } from './variables/systemVariables';
 import { getOSType, OSType } from './utils/platform';
+import { isWindows } from './platform/platformService';
 
 const untildify = require('untildify');
 
 export class PythonSettings implements IPythonSettings {
-    public get onDidChange(): Event<void> {
+    private get onDidChange(): Event<ConfigurationChangeEvent | undefined> {
         return this.changed.event;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public static onConfigChange(): Event<ConfigurationChangeEvent | undefined> {
+        return PythonSettings.configChanged.event;
     }
 
     public get pythonPath(): string {
@@ -67,13 +73,15 @@ export class PythonSettings implements IPythonSettings {
 
     private static pythonSettings: Map<string, PythonSettings> = new Map<string, PythonSettings>();
 
-    public downloadLanguageServer = true;
-
     public envFile = '';
 
     public venvPath = '';
 
+    public interpreter!: IInterpreterSettings;
+
     public venvFolders: string[] = [];
+
+    public activeStateToolPath = '';
 
     public condaPath = '';
 
@@ -93,7 +101,9 @@ export class PythonSettings implements IPythonSettings {
 
     public languageServerIsDefault = true;
 
-    protected readonly changed = new EventEmitter<void>();
+    protected readonly changed = new EventEmitter<ConfigurationChangeEvent | undefined>();
+
+    private static readonly configChanged = new EventEmitter<ConfigurationChangeEvent | undefined>();
 
     private workspaceRoot: Resource;
 
@@ -137,6 +147,12 @@ export class PythonSettings implements IPythonSettings {
         }
 
         return PythonSettings.pythonSettings.get(workspaceFolderKey)!;
+    }
+
+    @debounceSync(1)
+    // eslint-disable-next-line class-methods-use-this
+    protected static debounceConfigChangeNotification(event?: ConfigurationChangeEvent): void {
+        PythonSettings.configChanged.fire(event);
     }
 
     public static getSettingsUriAndTarget(
@@ -201,6 +217,11 @@ export class PythonSettings implements IPythonSettings {
 
         this.venvPath = systemVariables.resolveAny(pythonSettings.get<string>('venvPath'))!;
         this.venvFolders = systemVariables.resolveAny(pythonSettings.get<string[]>('venvFolders'))!;
+        const activeStateToolPath = systemVariables.resolveAny(pythonSettings.get<string>('activeStateToolPath'))!;
+        this.activeStateToolPath =
+            activeStateToolPath && activeStateToolPath.length > 0
+                ? getAbsolutePath(activeStateToolPath, workspaceRoot)
+                : activeStateToolPath;
         const condaPath = systemVariables.resolveAny(pythonSettings.get<string>('condaPath'))!;
         this.condaPath = condaPath && condaPath.length > 0 ? getAbsolutePath(condaPath, workspaceRoot) : condaPath;
         const pipenvPath = systemVariables.resolveAny(pythonSettings.get<string>('pipenvPath'))!;
@@ -262,28 +283,40 @@ export class PythonSettings implements IPythonSettings {
         }
     }
 
-    public initialize(): void {
-        const onDidChange = () => {
-            const currentConfig = this.workspace.getConfiguration('python', this.workspaceRoot);
-            this.update(currentConfig);
+    public register(): void {
+        PythonSettings.pythonSettings = new Map();
+        this.initialize();
+    }
 
-            // If workspace config changes, then we could have a cascading effect of on change events.
-            // Let's defer the change notification.
-            this.debounceChangeNotification();
-        };
+    private onDidChanged(event?: ConfigurationChangeEvent) {
+        const currentConfig = this.workspace.getConfiguration('python', this.workspaceRoot);
+        this.update(currentConfig);
+
+        // If workspace config changes, then we could have a cascading effect of on change events.
+        // Let's defer the change notification.
+        this.debounceChangeNotification(event);
+    }
+
+    public initialize(): void {
         this.disposables.push(this.workspace.onDidChangeWorkspaceFolders(this.onWorkspaceFoldersChanged, this));
         this.disposables.push(
-            this.interpreterAutoSelectionService.onDidChangeAutoSelectedInterpreter(onDidChange.bind(this)),
+            this.interpreterAutoSelectionService.onDidChangeAutoSelectedInterpreter(() => {
+                this.onDidChanged();
+            }),
         );
         this.disposables.push(
             this.workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
                 if (event.affectsConfiguration('python')) {
-                    onDidChange();
+                    this.onDidChanged(event);
                 }
             }),
         );
         if (this.interpreterPathService) {
-            this.disposables.push(this.interpreterPathService.onDidChange(onDidChange.bind(this)));
+            this.disposables.push(
+                this.interpreterPathService.onDidChange(() => {
+                    this.onDidChanged();
+                }),
+            );
         }
 
         const initialConfig = this.workspace.getConfiguration('python', this.workspaceRoot);
@@ -293,8 +326,8 @@ export class PythonSettings implements IPythonSettings {
     }
 
     @debounceSync(1)
-    protected debounceChangeNotification(): void {
-        this.changed.fire();
+    protected debounceChangeNotification(event?: ConfigurationChangeEvent): void {
+        this.changed.fire(event);
     }
 
     private getPythonPath(
@@ -384,7 +417,7 @@ function getPythonExecutable(pythonPath: string): string {
 
     for (let executableName of KnownPythonExecutables) {
         // Suffix with 'python' for linux and 'osx', and 'python.exe' for 'windows'.
-        if (IS_WINDOWS) {
+        if (isWindows()) {
             executableName = `${executableName}.exe`;
             if (isValidPythonPath(path.join(pythonPath, executableName))) {
                 return path.join(pythonPath, executableName);

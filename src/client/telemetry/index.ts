@@ -2,7 +2,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import TelemetryReporter from 'vscode-extension-telemetry/lib/telemetryReporter';
+import TelemetryReporter from '@vscode/extension-telemetry';
 
 import { IWorkspaceService } from '../common/application/types';
 import { AppinsightsKey, isTestExecution, isUnitTestExecution, PVSC_EXTENSION_ID } from '../common/constants';
@@ -31,12 +31,13 @@ function isTelemetrySupported(): boolean {
 }
 
 /**
- * Checks if the telemetry is disabled in user settings
+ * Checks if the telemetry is disabled
  * @returns {boolean}
  */
-export function isTelemetryDisabled(workspaceService: IWorkspaceService): boolean {
-    const settings = workspaceService.getConfiguration('telemetry').inspect<boolean>('enableTelemetry')!;
-    return settings.globalValue === false;
+export function isTelemetryDisabled(): boolean {
+    const packageJsonPath = path.join(EXTENSION_ROOT_DIR, 'package.json');
+    const packageJson = fs.readJSONSync(packageJsonPath);
+    return !packageJson.enableTelemetry;
 }
 
 const sharedProperties: Record<string, unknown> = {};
@@ -66,18 +67,17 @@ export function _resetSharedProperties(): void {
 }
 
 let telemetryReporter: TelemetryReporter | undefined;
-function getTelemetryReporter() {
+export function getTelemetryReporter(): TelemetryReporter {
     if (!isTestExecution() && telemetryReporter) {
         return telemetryReporter;
     }
-    const extensionId = PVSC_EXTENSION_ID;
 
-    const { extensions } = require('vscode') as typeof import('vscode');
-    const extension = extensions.getExtension(extensionId)!;
-    const extensionVersion = extension.packageJSON.version;
-
-    const Reporter = require('vscode-extension-telemetry').default as typeof TelemetryReporter;
-    telemetryReporter = new Reporter(extensionId, extensionVersion, AppinsightsKey, true);
+    const Reporter = require('@vscode/extension-telemetry').default as typeof TelemetryReporter;
+    telemetryReporter = new Reporter(AppinsightsKey, [
+        {
+            lookup: /(errorName|errorMessage|errorStack)/g,
+        },
+    ]);
 
     return telemetryReporter;
 }
@@ -92,7 +92,7 @@ export function sendTelemetryEvent<P extends IEventNamePropertyMapping, E extend
     properties?: P[E],
     ex?: Error,
 ): void {
-    if (isTestExecution() || !isTelemetrySupported()) {
+    if (isTestExecution() || !isTelemetrySupported() || isTelemetryDisabled()) {
         return;
     }
     const reporter = getTelemetryReporter();
@@ -125,7 +125,7 @@ export function sendTelemetryEvent<P extends IEventNamePropertyMapping, E extend
                         break;
                 }
             } catch (exception) {
-                console.error(`Failed to serialize ${prop} for ${eventName}`, exception);
+                console.error(`Failed to serialize ${prop} for ${String(eventName)}`, exception);
             }
         });
     }
@@ -136,14 +136,10 @@ export function sendTelemetryEvent<P extends IEventNamePropertyMapping, E extend
     if (ex) {
         const errorProps = {
             errorName: ex.name,
-            errorMessage: ex.message,
             errorStack: ex.stack ?? '',
         };
         Object.assign(customProperties, errorProps);
-
-        // To avoid hardcoding the names and forgetting to update later.
-        const errorPropNames = Object.getOwnPropertyNames(errorProps);
-        reporter.sendTelemetryErrorEvent(eventNameSent, customProperties, measures, errorPropNames);
+        reporter.sendTelemetryErrorEvent(eventNameSent, customProperties, measures);
     } else {
         reporter.sendTelemetryEvent(eventNameSent, customProperties, measures);
     }
@@ -393,7 +389,7 @@ export interface IEventNamePropertyMapping {
      * Telemetry event sent when substituting Environment variables to calculate value of variables
      */
     /* __GDPR__
-       "envfile_variable_substitution" : { }
+       "envfile_variable_substitution" : { "owner": "karthiknadig" }
      */
     [EventName.ENVFILE_VARIABLE_SUBSTITUTION]: never | undefined;
     /**
@@ -434,6 +430,12 @@ export interface IEventNamePropertyMapping {
          * @type {('command' | 'icon')}
          */
         trigger?: 'command' | 'icon';
+        /**
+         * Whether user chose to execute this Python file in a separate terminal or not.
+         *
+         * @type {boolean}
+         */
+        newTerminalPerFile?: boolean;
     };
     /**
      * Telemetry event sent with details when tracking imports
@@ -473,7 +475,7 @@ export interface IEventNamePropertyMapping {
          */
         installer: string;
         /**
-         * The name of the installer required (expected to be available) for installation of pacakges. (pipenv, Conda etc.)
+         * The name of the installer required (expected to be available) for installation of packages. (pipenv, Conda etc.)
          */
         requiredInstaller?: string;
         /**
@@ -566,7 +568,7 @@ export interface IEventNamePropertyMapping {
         pythonVersion?: string;
     };
     /* __GDPR__
-       "python_interpreter_activation_environment_variables" : {
+       "python_interpreter.activation_environment_variables" : {
           "hasenvvars" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "owner": "karrtikr" },
           "failed" : { "classification": "SystemMetaData", "purpose": "PerformanceAndHealth", "owner": "karrtikr" }
        }
@@ -691,7 +693,7 @@ export interface IEventNamePropertyMapping {
         useCachedInterpreter?: boolean;
     };
     /**
-     * Sends information regarding discovered python environments (virtualenv, conda, pipenv etc.)
+     * Telemetry event sent when discovery of all python environments (virtualenv, conda, pipenv etc.) finishes.
      */
     /* __GDPR__
        "python_interpreter_discovery" : {
@@ -702,7 +704,7 @@ export interface IEventNamePropertyMapping {
      */
     [EventName.PYTHON_INTERPRETER_DISCOVERY]: {
         /**
-         * The number of the interpreters returned by locator
+         * The number of the interpreters discovered
          */
         interpreters?: number;
         /**
@@ -730,11 +732,43 @@ export interface IEventNamePropertyMapping {
      */
     [EventName.CONDA_INHERIT_ENV_PROMPT]: {
         /**
+         * `Yes` When 'Allow' option is selected
+         * `Close` When 'Close' option is selected
+         */
+        selection: 'Allow' | 'Close' | undefined;
+    };
+    /**
+     * Telemetry event sent with details when user attempts to run in interactive window when Jupyter is not installed.
+     */
+    /* __GDPR__
+       "conda_inherit_env_prompt" : {
+          "selection" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "owner": "karrtikr" }
+       }
+     */
+    [EventName.REQUIRE_JUPYTER_PROMPT]: {
+        /**
          * `Yes` When 'Yes' option is selected
          * `No` When 'No' option is selected
-         * `More info` When 'More Info' option is selected
+         * `undefined` When 'x' is selected
          */
-        selection: 'Yes' | 'No' | 'More Info' | undefined;
+        selection: 'Yes' | 'No' | undefined;
+    };
+    /**
+     * Telemetry event sent with details when user clicks the prompt with the following message:
+     *
+     * 'We noticed VS Code was launched from an activated conda environment, would you like to select it?'
+     */
+    /* __GDPR__
+       "activated_conda_env_launch" : {
+          "selection" : { "classification": "SystemMetaData", "purpose": "FeatureInsight", "owner": "karrtikr" }
+       }
+     */
+    [EventName.ACTIVATED_CONDA_ENV_LAUNCH]: {
+        /**
+         * `Yes` When 'Yes' option is selected
+         * `No` When 'No' option is selected
+         */
+        selection: 'Yes' | 'No' | undefined;
     };
     /**
      * Telemetry event sent with details when user clicks a button in the virtual environment prompt.

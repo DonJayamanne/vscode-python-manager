@@ -20,6 +20,7 @@ interface ICommandNameWithoutArgumentTypeMapping {
     ['workbench.action.debug.stop']: [];
     ['workbench.action.reloadWindow']: [];
     ['workbench.action.closeActiveEditor']: [];
+    ['workbench.action.terminal.focus']: [];
     ['editor.action.formatDocument']: [];
     ['editor.action.rename']: [];
     [Commands.ViewOutput]: [];
@@ -40,8 +41,9 @@ export type AllCommands = keyof ICommandNameArgumentTypeMapping;
 export interface ICommandNameArgumentTypeMapping extends ICommandNameWithoutArgumentTypeMapping {
     ['vscode.openWith']: [Uri, string];
     ['workbench.action.quickOpen']: [string];
+    ['workbench.action.openWalkthrough']: [string | { category: string; step: string }, boolean | undefined];
     ['workbench.extensions.installExtension']: [
-        Uri | 'ms-python.python',
+        Uri | string,
         (
             | {
                   installOnlyNewlyAddedFromExtensionPackVSIX?: boolean;

@@ -2,14 +2,11 @@
 // Licensed under the MIT License.
 import { IExtensionSingleActivationService } from '../activation/types';
 import {
-    IAsyncDisposableRegistry,
     IBrowserService,
     IConfigurationService,
     ICurrentProcess,
     IEditorUtils,
     IExtensions,
-    IFileDownloader,
-    IHttpClient,
     IInstaller,
     IInterpreterPathService,
     IPathUtils,
@@ -40,23 +37,20 @@ import {
     IWorkspaceService,
 } from './application/types';
 import { WorkspaceService } from './application/workspace';
-import { AsyncDisposableRegistry } from './asyncDisposableRegistry';
 import { ConfigurationService } from './configuration/service';
 import { PipEnvExecutionPath } from './configuration/executionSettings/pipEnvExecution';
 import { EditorUtils } from './editor';
 import { ProductInstaller } from './installer/productInstaller';
 import { InterpreterPathService } from './interpreterPathService';
 import { BrowserService } from './net/browser';
-import { FileDownloader } from './net/fileDownloader';
-import { HttpClient } from './net/httpClient';
 import { PersistentStateFactory } from './persistentState';
-import { IS_WINDOWS } from './platform/constants';
 import { PathUtils } from './platform/pathUtils';
 import { CurrentProcess } from './process/currentProcess';
 import { ProcessLogger } from './process/logger';
 import { IProcessLogger } from './process/types';
 import { TerminalActivator } from './terminal/activator';
 import { Bash } from './terminal/environmentActivationProviders/bash';
+import { Nushell } from './terminal/environmentActivationProviders/nushell';
 import { CommandPromptAndPowerShell } from './terminal/environmentActivationProviders/commandPrompt';
 import { CondaActivationCommandProvider } from './terminal/environmentActivationProviders/condaActivationProvider';
 import { PipEnvActivationCommandProvider } from './terminal/environmentActivationProviders/pipEnvActivationProvider';
@@ -79,9 +73,12 @@ import {
 import { IMultiStepInputFactory, MultiStepInputFactory } from './utils/multiStepInput';
 import { Random } from './utils/random';
 import { ContextKeyManager } from './application/contextKeyManager';
+import { CreatePythonFileCommandHandler } from './application/commands/createPythonFile';
+import { RequireJupyterPrompt } from '../jupyter/requireJupyterPrompt';
+import { isWindows } from './platform/platformService';
 
 export function registerTypes(serviceManager: IServiceManager): void {
-    serviceManager.addSingletonInstance<boolean>(IsWindows, IS_WINDOWS);
+    serviceManager.addSingletonInstance<boolean>(IsWindows, isWindows());
 
     serviceManager.addSingleton<IActiveResourceService>(IActiveResourceService, ActiveResourceService);
     serviceManager.addSingleton<IInterpreterPathService>(IInterpreterPathService, InterpreterPathService);
@@ -104,8 +101,6 @@ export function registerTypes(serviceManager: IServiceManager): void {
     serviceManager.addSingleton<ITerminalManager>(ITerminalManager, TerminalManager);
     serviceManager.addSingleton<IApplicationEnvironment>(IApplicationEnvironment, ApplicationEnvironment);
     serviceManager.addSingleton<IBrowserService>(IBrowserService, BrowserService);
-    serviceManager.addSingleton<IHttpClient>(IHttpClient, HttpClient);
-    serviceManager.addSingleton<IFileDownloader>(IFileDownloader, FileDownloader);
     serviceManager.addSingleton<IEditorUtils>(IEditorUtils, EditorUtils);
     serviceManager.addSingleton<ITerminalActivator>(ITerminalActivator, TerminalActivator);
 
@@ -119,6 +114,11 @@ export function registerTypes(serviceManager: IServiceManager): void {
         ITerminalActivationCommandProvider,
         CommandPromptAndPowerShell,
         TerminalActivationProviders.commandPromptAndPowerShell,
+    );
+    serviceManager.addSingleton<ITerminalActivationCommandProvider>(
+        ITerminalActivationCommandProvider,
+        Nushell,
+        TerminalActivationProviders.nushell,
     );
     serviceManager.addSingleton<ITerminalActivationCommandProvider>(
         ITerminalActivationCommandProvider,
@@ -137,7 +137,6 @@ export function registerTypes(serviceManager: IServiceManager): void {
     );
     serviceManager.addSingleton<IToolExecutionPath>(IToolExecutionPath, PipEnvExecutionPath, ToolExecutionPath.pipenv);
 
-    serviceManager.addSingleton<IAsyncDisposableRegistry>(IAsyncDisposableRegistry, AsyncDisposableRegistry);
     serviceManager.addSingleton<IMultiStepInputFactory>(IMultiStepInputFactory, MultiStepInputFactory);
     serviceManager.addSingleton<IShellDetector>(IShellDetector, TerminalNameShellDetector);
     serviceManager.addSingleton<IShellDetector>(IShellDetector, SettingsShellDetector);

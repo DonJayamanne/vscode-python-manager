@@ -1,6 +1,5 @@
 import { inject, injectable } from 'inversify';
-import * as path from 'path';
-import { ConfigurationTarget, Uri, window } from 'vscode';
+import { ConfigurationTarget, l10n, Uri, window } from 'vscode';
 import { StopWatch } from '../../common/utils/stopWatch';
 import { SystemVariables } from '../../common/variables/systemVariables';
 import { traceError } from '../../logging';
@@ -28,12 +27,12 @@ export class PythonPathUpdaterService implements IPythonPathUpdaterServiceManage
         const pythonPathUpdater = this.getPythonUpdaterService(configTarget, wkspace);
         let failed = false;
         try {
-            await pythonPathUpdater.updatePythonPath(pythonPath ? path.normalize(pythonPath) : undefined);
+            await pythonPathUpdater.updatePythonPath(pythonPath);
         } catch (err) {
             failed = true;
             const reason = err as Error;
             const message = reason && typeof reason.message === 'string' ? (reason.message as string) : '';
-            window.showErrorMessage(`Failed to set interpreter path. Error: ${message}`);
+            window.showErrorMessage(l10n.t('Failed to set interpreter path. Error: {0}', message));
             traceError(reason);
         }
         // do not wait for this to complete

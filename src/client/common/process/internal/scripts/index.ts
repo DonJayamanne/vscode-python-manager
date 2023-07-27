@@ -25,9 +25,6 @@ const SCRIPTS_DIR = _SCRIPTS_DIR;
 // In some cases one or more types related to a script are exported
 // from the same module in which the script's function is located.
 // These types typically relate to the return type of "parse()".
-//
-// ignored scripts:
-//  * install_debugpy.py  (used only for extension development)
 export * as testingTools from './testing_tools';
 
 // interpreterInfo.py
@@ -43,35 +40,16 @@ export type InterpreterInfoJson = {
 
 export const OUTPUT_MARKER_SCRIPT = path.join(_SCRIPTS_DIR, 'get_output_via_markers.py');
 
-export function interpreterInfo(): [string[], (out: string) => InterpreterInfoJson | undefined] {
+export function interpreterInfo(): [string[], (out: string) => InterpreterInfoJson] {
     const script = path.join(SCRIPTS_DIR, 'interpreterInfo.py');
     const args = [script];
 
-    function parse(out: string): InterpreterInfoJson | undefined {
-        let json: InterpreterInfoJson | undefined;
+    function parse(out: string): InterpreterInfoJson {
         try {
-            json = JSON.parse(out);
+            return JSON.parse(out);
         } catch (ex) {
             throw Error(`python ${args} returned bad JSON (${out}) (${ex})`);
         }
-        return json;
-    }
-
-    return [args, parse];
-}
-
-// sortImports.py
-
-export function sortImports(filename: string, sortArgs?: string[]): [string[], (out: string) => string] {
-    const script = path.join(SCRIPTS_DIR, 'sortImports.py');
-    const args = [script, filename, '--diff'];
-    if (sortArgs) {
-        args.push(...sortArgs);
-    }
-
-    function parse(out: string) {
-        // It should just be a diff that the extension will use directly.
-        return out;
     }
 
     return [args, parse];
@@ -129,12 +107,26 @@ export function testlauncher(testArgs: string[]): string[] {
     return [script, ...testArgs];
 }
 
+// run_pytest_script.py
+export function pytestlauncher(testArgs: string[]): string[] {
+    const script = path.join(SCRIPTS_DIR, 'vscode_pytest', 'run_pytest_script.py');
+    // There is no output to parse, so we do not return a function.
+    return [script, ...testArgs];
+}
+
 // visualstudio_py_testlauncher.py
 
 // eslint-disable-next-line camelcase
 export function visualstudio_py_testlauncher(testArgs: string[]): string[] {
     const script = path.join(SCRIPTS_DIR, 'visualstudio_py_testlauncher.py');
     // There is no output to parse, so we do not return a function.
+    return [script, ...testArgs];
+}
+
+// execution.py
+// eslint-disable-next-line camelcase
+export function execution_py_testlauncher(testArgs: string[]): string[] {
+    const script = path.join(SCRIPTS_DIR, 'unittestadapter', 'execution.py');
     return [script, ...testArgs];
 }
 
@@ -149,5 +141,20 @@ export function tensorboardLauncher(args: string[]): string[] {
 
 export function linterScript(): string {
     const script = path.join(SCRIPTS_DIR, 'linter.py');
+    return script;
+}
+
+export function createVenvScript(): string {
+    const script = path.join(SCRIPTS_DIR, 'create_venv.py');
+    return script;
+}
+
+export function createCondaScript(): string {
+    const script = path.join(SCRIPTS_DIR, 'create_conda.py');
+    return script;
+}
+
+export function installedCheckScript(): string {
+    const script = path.join(SCRIPTS_DIR, 'installed_check.py');
     return script;
 }

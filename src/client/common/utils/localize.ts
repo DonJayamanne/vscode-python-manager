@@ -3,549 +3,510 @@
 
 'use strict';
 
-import { FileSystem } from '../platform/fileSystem';
-import { getLocalizedString, loadLocalizedStringsUsingNodeFS, shouldLoadUsingNodeFS } from './localizeHelpers';
+import { l10n } from 'vscode';
 
 /* eslint-disable @typescript-eslint/no-namespace, no-shadow */
 
 // External callers of localize use these tables to retrieve localized values.
 export namespace Diagnostics {
-    export const warnSourceMaps = localize(
-        'diagnostics.warnSourceMaps',
+    export const warnSourceMaps = l10n.t(
         'Source map support is enabled in the Python Extension, this will adversely impact performance of the extension.',
     );
-    export const disableSourceMaps = localize('diagnostics.disableSourceMaps', 'Disable Source Map Support');
-    export const warnBeforeEnablingSourceMaps = localize(
-        'diagnostics.warnBeforeEnablingSourceMaps',
+    export const disableSourceMaps = l10n.t('Disable Source Map Support');
+
+    export const warnBeforeEnablingSourceMaps = l10n.t(
         'Enabling source map support in the Python Extension will adversely impact performance of the extension.',
     );
-    export const enableSourceMapsAndReloadVSC = localize(
-        'diagnostics.enableSourceMapsAndReloadVSC',
-        'Enable and reload Window.',
-    );
-    export const lsNotSupported = localize(
-        'diagnostics.lsNotSupported',
+    export const enableSourceMapsAndReloadVSC = l10n.t('Enable and reload Window.');
+    export const lsNotSupported = l10n.t(
         'Your operating system does not meet the minimum requirements of the Python Language Server. Reverting to the alternative autocompletion provider, Jedi.',
     );
-    export const removedPythonPathFromSettings = localize(
-        'diagnostics.removedPythonPathFromSettings',
-        'The "python.pythonPath" setting in your settings.json is no longer used by the Python extension. If you want, you can use a new setting called "python.defaultInterpreterPath" instead. Keep in mind that you need to change the value of this setting manually as the Python extension doesn\'t modify it when you change interpreters. [Learn more](https://aka.ms/AA7jfor).',
+    export const invalidPythonPathInDebuggerSettings = l10n.t(
+        'You need to select a Python interpreter before you start debugging.\n\nTip: click on "Select Interpreter" in the status bar.',
     );
-    export const invalidPythonPathInDebuggerSettings = localize(
-        'diagnostics.invalidPythonPathInDebuggerSettings',
-        'You need to select a Python interpreter before you start debugging.\n\nTip: click on "Select Python Interpreter" in the status bar.',
-    );
-    export const invalidPythonPathInDebuggerLaunch = localize(
-        'diagnostics.invalidPythonPathInDebuggerLaunch',
-        'The Python path in your debug configuration is invalid.',
-    );
-    export const invalidDebuggerTypeDiagnostic = localize(
-        'diagnostics.invalidDebuggerTypeDiagnostic',
+    export const invalidPythonPathInDebuggerLaunch = l10n.t('The Python path in your debug configuration is invalid.');
+    export const invalidDebuggerTypeDiagnostic = l10n.t(
         'Your launch.json file needs to be updated to change the "pythonExperimental" debug configurations to use the "python" debugger type, otherwise Python debugging may not work. Would you like to automatically update your launch.json file now?',
     );
-    export const consoleTypeDiagnostic = localize(
-        'diagnostics.consoleTypeDiagnostic',
+    export const consoleTypeDiagnostic = l10n.t(
         'Your launch.json file needs to be updated to change the console type string from "none" to "internalConsole", otherwise Python debugging may not work. Would you like to automatically update your launch.json file now?',
     );
-    export const justMyCodeDiagnostic = localize(
-        'diagnostics.justMyCodeDiagnostic',
+    export const justMyCodeDiagnostic = l10n.t(
         'Configuration "debugStdLib" in launch.json is no longer supported. It\'s recommended to replace it with "justMyCode", which is the exact opposite of using "debugStdLib". Would you like to automatically update your launch.json file to do that?',
     );
-    export const yesUpdateLaunch = localize('diagnostics.yesUpdateLaunch', 'Yes, update launch.json');
-    export const invalidTestSettings = localize(
-        'diagnostics.invalidTestSettings',
+    export const yesUpdateLaunch = l10n.t('Yes, update launch.json');
+    export const invalidTestSettings = l10n.t(
         'Your settings needs to be updated to change the setting "python.unitTest." to "python.testing.", otherwise testing Python code using the extension may not work. Would you like to automatically update your settings now?',
     );
-    export const updateSettings = localize('diagnostics.updateSettings', 'Yes, update settings');
-    export const checkIsort5UpgradeGuide = localize(
-        'diagnostics.checkIsort5UpgradeGuide',
+    export const updateSettings = l10n.t('Yes, update settings');
+    export const checkIsort5UpgradeGuide = l10n.t(
         'We found outdated configuration for sorting imports in this workspace. Check the [isort upgrade guide](https://aka.ms/AA9j5x4) to update your settings.',
     );
-    export const pylanceDefaultMessage = localize(
-        'diagnostics.pylanceDefaultMessage',
+    export const pylanceDefaultMessage = l10n.t(
         "The Python extension now includes Pylance to improve completions, code navigation, overall performance and much more! You can learn more about the update and learn how to change your language server [here](https://aka.ms/new-python-bundle).\n\nRead Pylance's license [here](https://marketplace.visualstudio.com/items/ms-python.vscode-pylance/license).",
     );
 }
 
 export namespace Common {
-    export const bannerLabelYes = localize('Common.bannerLabelYes', 'Yes');
-    export const bannerLabelNo = localize('Common.bannerLabelNo', 'No');
-    export const yesPlease = localize('Common.yesPlease', 'Yes, please');
-    export const canceled = localize('Common.canceled', 'Canceled');
-    export const cancel = localize('Common.cancel', 'Cancel');
-    export const ok = localize('Common.ok', 'Ok');
-    export const gotIt = localize('Common.gotIt', 'Got it!');
-    export const install = localize('Common.install', 'Install');
-    export const loadingExtension = localize('Common.loadingPythonExtension', 'Python extension loading...');
-    export const openOutputPanel = localize('Common.openOutputPanel', 'Show output');
-    export const noIWillDoItLater = localize('Common.noIWillDoItLater', 'No, I will do it later');
-    export const notNow = localize('Common.notNow', 'Not now');
-    export const doNotShowAgain = localize('Common.doNotShowAgain', 'Do not show again');
-    export const reload = localize('Common.reload', 'Reload');
-    export const moreInfo = localize('Common.moreInfo', 'More Info');
-    export const learnMore = localize('Common.learnMore', 'Learn more');
-    export const and = localize('Common.and', 'and');
-    export const reportThisIssue = localize('Common.reportThisIssue', 'Report this issue');
-    export const recommended = localize('Common.recommended', 'Recommended');
-    export const clearAll = localize('Common.clearAll', 'Clear all');
+    export const allow = l10n.t('Allow');
+    export const seeInstructions = l10n.t('See Instructions');
+    export const close = l10n.t('Close');
+    export const bannerLabelYes = l10n.t('Yes');
+    export const bannerLabelNo = l10n.t('No');
+    export const canceled = l10n.t('Canceled');
+    export const cancel = l10n.t('Cancel');
+    export const ok = l10n.t('Ok');
+    export const error = l10n.t('Error');
+    export const gotIt = l10n.t('Got it!');
+    export const install = l10n.t('Install');
+    export const loadingExtension = l10n.t('Python extension loading...');
+    export const openOutputPanel = l10n.t('Show output');
+    export const noIWillDoItLater = l10n.t('No, I will do it later');
+    export const notNow = l10n.t('Not now');
+    export const doNotShowAgain = l10n.t('Do not show again');
+    export const reload = l10n.t('Reload');
+    export const moreInfo = l10n.t('More Info');
+    export const learnMore = l10n.t('Learn more');
+    export const and = l10n.t('and');
+    export const reportThisIssue = l10n.t('Report this issue');
+    export const recommended = l10n.t('Recommended');
+    export const clearAll = l10n.t('Clear all');
+    export const alwaysIgnore = l10n.t('Always Ignore');
+    export const ignore = l10n.t('Ignore');
+    export const selectPythonInterpreter = l10n.t('Select Python Interpreter');
+    export const openLaunch = l10n.t('Open launch.json');
+    export const useCommandPrompt = l10n.t('Use Command Prompt');
+    export const download = l10n.t('Download');
+    export const showLogs = l10n.t('Show logs');
+    export const openFolder = l10n.t('Open Folder...');
 }
 
 export namespace CommonSurvey {
-    export const remindMeLaterLabel = localize('CommonSurvey.remindMeLaterLabel', 'Remind me later');
-    export const yesLabel = localize('CommonSurvey.yesLabel', 'Yes, take survey now');
-    export const noLabel = localize('CommonSurvey.noLabel', 'No, thanks');
+    export const remindMeLaterLabel = l10n.t('Remind me later');
+    export const yesLabel = l10n.t('Yes, take survey now');
+    export const noLabel = l10n.t('No, thanks');
 }
 
 export namespace AttachProcess {
-    export const unsupportedOS = localize('AttachProcess.unsupportedOS', "Operating system '{0}' not supported.");
-    export const attachTitle = localize('AttachProcess.attachTitle', 'Attach to process');
-    export const selectProcessPlaceholder = localize(
-        'AttachProcess.selectProcessPlaceholder',
-        'Select the process to attach to',
-    );
-    export const noProcessSelected = localize('AttachProcess.noProcessSelected', 'No process selected');
-    export const refreshList = localize('AttachProcess.refreshList', 'Refresh process list');
+    export const attachTitle = l10n.t('Attach to process');
+    export const selectProcessPlaceholder = l10n.t('Select the process to attach to');
+    export const noProcessSelected = l10n.t('No process selected');
+    export const refreshList = l10n.t('Refresh process list');
 }
 
 export namespace Pylance {
-    export const remindMeLater = localize('Pylance.remindMeLater', 'Remind me later');
+    export const remindMeLater = l10n.t('Remind me later');
 
-    export const pylanceNotInstalledMessage = localize(
-        'Pylance.pylanceNotInstalledMessage',
-        'Pylance extension is not installed.',
-    );
-    export const pylanceInstalledReloadPromptMessage = localize(
-        'Pylance.pylanceInstalledReloadPromptMessage',
+    export const pylanceNotInstalledMessage = l10n.t('Pylance extension is not installed.');
+    export const pylanceInstalledReloadPromptMessage = l10n.t(
         'Pylance extension is now installed. Reload window to activate?',
     );
 
-    export const pylanceRevertToJediPrompt = localize(
-        'Pylance.pylanceRevertToJediPrompt',
+    export const pylanceRevertToJediPrompt = l10n.t(
         'The Pylance extension is not installed but the python.languageServer value is set to "Pylance". Would you like to install the Pylance extension to use Pylance, or revert back to Jedi?',
     );
-    export const pylanceInstallPylance = localize('Pylance.pylanceInstallPylance', 'Install Pylance');
-    export const pylanceRevertToJedi = localize('Pylance.pylanceRevertToJedi', 'Revert to Jedi');
+    export const pylanceInstallPylance = l10n.t('Install Pylance');
+    export const pylanceRevertToJedi = l10n.t('Revert to Jedi');
 }
 
 export namespace TensorBoard {
-    export const enterRemoteUrl = localize('TensorBoard.enterRemoteUrl', 'Enter remote URL');
-    export const enterRemoteUrlDetail = localize(
-        'TensorBoard.enterRemoteUrlDetail',
+    export const enterRemoteUrl = l10n.t('Enter remote URL');
+    export const enterRemoteUrlDetail = l10n.t(
         'Enter a URL pointing to a remote directory containing your TensorBoard log files',
     );
-    export const useCurrentWorkingDirectoryDetail = localize(
-        'TensorBoard.useCurrentWorkingDirectoryDetail',
+    export const useCurrentWorkingDirectoryDetail = l10n.t(
         'TensorBoard will search for tfevent files in all subdirectories of the current working directory',
     );
-    export const useCurrentWorkingDirectory = localize(
-        'TensorBoard.useCurrentWorkingDirectory',
-        'Use current working directory',
-    );
-    export const currentDirectory = localize('TensorBoard.currentDirectory', 'Current: {0}');
-    export const logDirectoryPrompt = localize(
-        'TensorBoard.logDirectoryPrompt',
-        'Select a log directory to start TensorBoard with',
-    );
-    export const progressMessage = localize('TensorBoard.progressMessage', 'Starting TensorBoard session...');
-    export const failedToStartSessionError = localize(
-        'TensorBoard.failedToStartSessionError',
-        'We failed to start a TensorBoard session due to the following error: {0}',
-    );
-    export const nativeTensorBoardPrompt = localize(
-        'TensorBoard.nativeTensorBoardPrompt',
+    export const useCurrentWorkingDirectory = l10n.t('Use current working directory');
+    export const logDirectoryPrompt = l10n.t('Select a log directory to start TensorBoard with');
+    export const progressMessage = l10n.t('Starting TensorBoard session...');
+    export const nativeTensorBoardPrompt = l10n.t(
         'VS Code now has integrated TensorBoard support. Would you like to launch TensorBoard?  (Tip: Launch TensorBoard anytime by opening the command palette and searching for "Launch TensorBoard".)',
     );
-    export const selectAFolder = localize('TensorBoard.selectAFolder', 'Select a folder');
-    export const selectAFolderDetail = localize(
-        'TensorBoard.selectAFolderDetail',
-        'Select a log directory containing tfevent files',
-    );
-    export const selectAnotherFolder = localize('TensorBoard.selectAnotherFolder', 'Select another folder');
-    export const selectAnotherFolderDetail = localize(
-        'TensorBoard.selectAnotherFolderDetail',
-        'Use the file explorer to select another folder',
-    );
-    export const installPrompt = localize(
-        'TensorBoard.installPrompt',
+    export const selectAFolder = l10n.t('Select a folder');
+    export const selectAFolderDetail = l10n.t('Select a log directory containing tfevent files');
+    export const selectAnotherFolder = l10n.t('Select another folder');
+    export const selectAnotherFolderDetail = l10n.t('Use the file explorer to select another folder');
+    export const installPrompt = l10n.t(
         'The package TensorBoard is required to launch a TensorBoard session. Would you like to install it?',
     );
-    export const installTensorBoardAndProfilerPluginPrompt = localize(
-        'TensorBoard.installTensorBoardAndProfilerPluginPrompt',
+    export const installTensorBoardAndProfilerPluginPrompt = l10n.t(
         'TensorBoard >= 2.4.1 and the PyTorch Profiler TensorBoard plugin >= 0.2.0 are required. Would you like to install these packages?',
     );
-    export const installProfilerPluginPrompt = localize(
-        'TensorBoard.installProfilerPluginPrompt',
+    export const installProfilerPluginPrompt = l10n.t(
         'We recommend installing version >= 0.2.0 of the PyTorch Profiler TensorBoard plugin. Would you like to install the package?',
     );
-    export const upgradePrompt = localize(
-        'TensorBoard.upgradePrompt',
+    export const upgradePrompt = l10n.t(
         'Integrated TensorBoard support is only available for TensorBoard >= 2.4.1. Would you like to upgrade your copy of TensorBoard?',
     );
-    export const launchNativeTensorBoardSessionCodeLens = localize(
-        'TensorBoard.launchNativeTensorBoardSessionCodeLens',
-        '▶ Launch TensorBoard Session',
+    export const launchNativeTensorBoardSessionCodeLens = l10n.t('▶ Launch TensorBoard Session');
+    export const launchNativeTensorBoardSessionCodeAction = l10n.t('Launch TensorBoard session');
+    export const missingSourceFile = l10n.t(
+        'The Python extension could not locate the requested source file on disk. Please manually specify the file.',
     );
-    export const launchNativeTensorBoardSessionCodeAction = localize(
-        'TensorBoard.launchNativeTensorBoardSessionCodeAction',
-        'Launch TensorBoard session',
-    );
-    export const missingSourceFile = localize(
-        'TensorBoard.missingSourceFile',
-        'We could not locate the requested source file on disk. Please manually specify the file.',
-    );
-    export const selectMissingSourceFile = localize('TensorBoard.selectMissingSourceFile', 'Choose File');
-    export const selectMissingSourceFileDescription = localize(
-        'TensorBoard.selectMissingSourceFileDescription',
+    export const selectMissingSourceFile = l10n.t('Choose File');
+    export const selectMissingSourceFileDescription = l10n.t(
         "The source file's contents may not match the original contents in the trace.",
     );
 }
 
 export namespace LanguageService {
     export const virtualWorkspaceStatusItem = {
-        detail: localize(
-            'LanguageService.virtualWorkspaceStatusItem.detail',
-            'Limited IntelliSense supported by Jedi and Pylance',
-        ),
+        detail: l10n.t('Limited IntelliSense supported by Jedi and Pylance'),
     };
     export const statusItem = {
-        name: localize('LanguageService.statusItem.name', 'Python IntelliSense Status'),
-        text: localize('LanguageService.statusItem.text', 'Partial Mode'),
-        detail: localize('LanguageService.statusItem.detail', 'Limited IntelliSense provided by Pylance'),
+        name: l10n.t('Python IntelliSense Status'),
+        text: l10n.t('Partial Mode'),
+        detail: l10n.t('Limited IntelliSense provided by Pylance'),
     };
-    export const startingPylance = localize('LanguageService.startingPylance', 'Starting Pylance language server.');
-    export const startingJedi = localize('LanguageService.startingJedi', 'Starting Jedi language server.');
-    export const startingNone = localize(
-        'LanguageService.startingNone',
-        'Editor support is inactive since language server is set to None.',
-    );
-    export const untrustedWorkspaceMessage = localize(
-        'LanguageService.untrustedWorkspaceMessage',
+    export const startingPylance = l10n.t('Starting Pylance language server.');
+    export const startingNone = l10n.t('Editor support is inactive since language server is set to None.');
+    export const untrustedWorkspaceMessage = l10n.t(
         'Only Pylance is supported in untrusted workspaces, setting language server to None.',
     );
 
-    export const reloadAfterLanguageServerChange = localize(
-        'LanguageService.reloadAfterLanguageServerChange',
-        'Please reload the window switching between language servers.',
+    export const reloadAfterLanguageServerChange = l10n.t(
+        'Reload the window after switching between language servers.',
     );
 
-    export const lsFailedToStart = localize(
-        'LanguageService.lsFailedToStart',
+    export const lsFailedToStart = l10n.t(
         'We encountered an issue starting the language server. Reverting to Jedi language engine. Check the Python output panel for details.',
     );
-    export const lsFailedToDownload = localize(
-        'LanguageService.lsFailedToDownload',
+    export const lsFailedToDownload = l10n.t(
         'We encountered an issue downloading the language server. Reverting to Jedi language engine. Check the Python output panel for details.',
     );
-    export const lsFailedToExtract = localize(
-        'LanguageService.lsFailedToExtract',
+    export const lsFailedToExtract = l10n.t(
         'We encountered an issue extracting the language server. Reverting to Jedi language engine. Check the Python output panel for details.',
     );
-    export const downloadFailedOutputMessage = localize(
-        'LanguageService.downloadFailedOutputMessage',
-        'Language server download failed.',
+    export const downloadFailedOutputMessage = l10n.t('Language server download failed.');
+    export const extractionFailedOutputMessage = l10n.t('Language server extraction failed.');
+    export const extractionCompletedOutputMessage = l10n.t('Language server download complete.');
+    export const extractionDoneOutputMessage = l10n.t('done.');
+    export const reloadVSCodeIfSeachPathHasChanged = l10n.t(
+        'Search paths have changed for this Python interpreter. Reload the extension to ensure that the IntelliSense works correctly.',
     );
-    export const extractionFailedOutputMessage = localize(
-        'LanguageService.extractionFailedOutputMessage',
-        'Language server extraction failed.',
-    );
-    export const extractionCompletedOutputMessage = localize(
-        'LanguageService.extractionCompletedOutputMessage',
-        'Language server download complete.',
-    );
-    export const extractionDoneOutputMessage = localize('LanguageService.extractionDoneOutputMessage', 'done.');
-    export const reloadVSCodeIfSeachPathHasChanged = localize(
-        'LanguageService.reloadVSCodeIfSeachPathHasChanged',
-        'Search paths have changed for this Python interpreter. Please reload the extension to ensure that the IntelliSense works correctly.',
-    );
-}
-
-export namespace Http {
-    export const downloadingFile = localize('downloading.file', 'Downloading {0}...');
-    export const downloadingFileProgress = localize('downloading.file.progress', '{0}{1} of {2} KB ({3}%)');
-}
-export namespace Experiments {
-    export const inGroup = localize('Experiments.inGroup', "Experiment '{0}' is active");
-    export const optedOutOf = localize('Experiments.optedOutOf', "Experiment '{0}' is inactive");
 }
 export namespace Interpreters {
-    export const installingPython = localize('Interpreters.installingPython', 'Installing Python into Environment...');
-    export const discovering = localize('Interpreters.DiscoveringInterpreters', 'Discovering Python Interpreters');
-    export const refreshing = localize('Interpreters.RefreshingInterpreters', 'Refreshing Python Interpreters');
-    export const condaInheritEnvMessage = localize(
-        'Interpreters.condaInheritEnvMessage',
-        'We noticed you\'re using a conda environment. If you are experiencing issues with this environment in the integrated terminal, we recommend that you let the Python extension change "terminal.integrated.inheritEnv" to false in your user settings.',
+    export const requireJupyter = l10n.t(
+        'Running in Interactive window requires Jupyter Extension. Would you like to install it? [Learn more](https://aka.ms/pythonJupyterSupport).',
     );
-    export const environmentPromptMessage = localize(
-        'Interpreters.environmentPromptMessage',
-        'We noticed a new virtual environment has been created. Do you want to select it for the workspace folder?',
+    export const installingPython = l10n.t('Installing Python into Environment...');
+    export const discovering = l10n.t('Discovering Python Interpreters');
+    export const refreshing = l10n.t('Refreshing Python Interpreters');
+    export const condaInheritEnvMessage = l10n.t(
+        'We noticed you\'re using a conda environment. If you are experiencing issues with this environment in the integrated terminal, we recommend that you let the Python extension change "terminal.integrated.inheritEnv" to false in your user settings. [Learn more](https://aka.ms/AA66i8f).',
     );
-    export const entireWorkspace = localize('Interpreters.entireWorkspace', 'Select at workspace level');
-    export const clearAtWorkspace = localize('Interpreters.clearAtWorkspace', 'Clear at workspace level');
-    export const selectInterpreterTip = localize(
-        'Interpreters.selectInterpreterTip',
+    export const activatingTerminals = l10n.t('Reactivating terminals...');
+    export const activateTerminalDescription = l10n.t('Activated environment for');
+    export const activatedCondaEnvLaunch = l10n.t(
+        'We noticed VS Code was launched from an activated conda environment, would you like to select it?',
+    );
+    export const environmentPromptMessage = l10n.t(
+        'We noticed a new environment has been created. Do you want to select it for the workspace folder?',
+    );
+    export const entireWorkspace = l10n.t('Select at workspace level');
+    export const clearAtWorkspace = l10n.t('Clear at workspace level');
+    export const selectInterpreterTip = l10n.t(
         'Tip: you can change the Python interpreter used by the Python extension by clicking on the Python version in the status bar',
     );
-    export const pythonInterpreterPath = localize('Interpreters.pythonInterpreterPath', 'Python interpreter path: {0}');
+    export const installPythonTerminalMessageLinux = l10n.t(
+        '💡 Try installing the Python package using your package manager. Alternatively you can also download it from https://www.python.org/downloads',
+    );
+
+    export const installPythonTerminalMacMessage = l10n.t(
+        '💡 Brew does not seem to be available. You can download Python from https://www.python.org/downloads. Alternatively, you can install the Python package using some other available package manager.',
+    );
+    export const changePythonInterpreter = l10n.t('Change Python Interpreter');
+    export const selectedPythonInterpreter = l10n.t('Selected Python Interpreter');
 }
 
 export namespace InterpreterQuickPickList {
-    export const globalGroupName = localize('InterpreterQuickPickList.globalGroupName', 'Global');
-    export const workspaceGroupName = localize('InterpreterQuickPickList.workspaceGroupName', 'Workspace');
-    export const quickPickListPlaceholder = localize(
-        'InterpreterQuickPickList.quickPickListPlaceholder',
-        'Selected Interpreter: {0}',
+    export const condaEnvWithoutPythonTooltip = l10n.t(
+        'Python is not available in this environment, it will automatically be installed upon selecting it',
     );
+    export const noPythonInstalled = l10n.t('Python is not installed');
+    export const clickForInstructions = l10n.t('Click for instructions...');
+    export const globalGroupName = l10n.t('Global');
+    export const workspaceGroupName = l10n.t('Workspace');
     export const enterPath = {
-        label: localize('InterpreterQuickPickList.enterPath.label', 'Enter interpreter path...'),
-        placeholder: localize('InterpreterQuickPickList.enterPath.placeholder', 'Enter path to a Python interpreter.'),
+        label: l10n.t('Enter interpreter path...'),
+        placeholder: l10n.t('Enter path to a Python interpreter.'),
     };
     export const defaultInterpreterPath = {
-        label: localize(
-            'InterpreterQuickPickList.defaultInterpreterPath.label',
-            'Use Python from `python.defaultInterpreterPath` setting',
-        ),
+        label: l10n.t('Use Python from `python.defaultInterpreterPath` setting'),
     };
     export const browsePath = {
-        label: localize('InterpreterQuickPickList.browsePath.label', 'Find...'),
-        detail: localize(
-            'InterpreterQuickPickList.browsePath.detail',
-            'Browse your file system to find a Python interpreter.',
-        ),
-        openButtonLabel: localize('python.command.python.setInterpreter.title', 'Select Interpreter'),
-        title: localize('InterpreterQuickPickList.browsePath.title', 'Select Python interpreter'),
+        label: l10n.t('Find...'),
+        detail: l10n.t('Browse your file system to find a Python interpreter.'),
+        openButtonLabel: l10n.t('Select Interpreter'),
+        title: l10n.t('Select Python interpreter'),
     };
-    export const refreshInterpreterList = localize(
-        'InterpreterQuickPickList.refreshInterpreterList',
-        'Refresh Interpreter list',
-    );
+    export const refreshInterpreterList = l10n.t('Refresh Interpreter list');
+    export const refreshingInterpreterList = l10n.t('Refreshing Interpreter list...');
 }
 
 export namespace OutputChannelNames {
-    export const languageServer = localize('OutputChannelNames.languageServer', 'Python Language Server');
-    export const python = localize('OutputChannelNames.python', 'Python');
-    export const pythonTest = localize('OutputChannelNames.pythonTest', 'Python Test Log');
-}
-
-export namespace Logging {
-    export const currentWorkingDirectory = localize('Logging.CurrentWorkingDirectory', 'cwd:');
+    export const languageServer = l10n.t('Python Language Server');
+    export const python = l10n.t('Python');
+    export const pythonTest = l10n.t('Python Test Log');
 }
 
 export namespace Linters {
-    export const replaceWithSelectedLinter = localize(
-        'Linter.replaceWithSelectedLinter',
-        "Multiple linters are enabled in settings. Replace with '{0}'?",
-    );
-    export const selectLinter = localize('Linter.selectLinter', 'Select Linter');
+    export const selectLinter = l10n.t('Select Linter');
 }
 
 export namespace Installer {
-    export const noCondaOrPipInstaller = localize(
-        'Installer.noCondaOrPipInstaller',
+    export const noCondaOrPipInstaller = l10n.t(
         'There is no Conda or Pip installer available in the selected environment.',
     );
-    export const noPipInstaller = localize(
-        'Installer.noPipInstaller',
-        'There is no Pip installer available in the selected environment.',
-    );
-    export const searchForHelp = localize('Installer.searchForHelp', 'Search for help');
-    export const couldNotInstallLibrary = localize(
-        'Installer.couldNotInstallLibrary',
-        'Could not install {0}. If pip is not available, please use the package manager of your choice to manually install this library into your Python environment.',
-    );
-    export const dataScienceInstallPrompt = localize(
-        'Installer.dataScienceInstallPrompt',
-        'Data Science library {0} is not installed. Install?',
-    );
+    export const noPipInstaller = l10n.t('There is no Pip installer available in the selected environment.');
+    export const searchForHelp = l10n.t('Search for help');
 }
 
 export namespace ExtensionSurveyBanner {
-    export const bannerMessage = localize(
-        'ExtensionSurveyBanner.bannerMessage',
-        'Can you please take 2 minutes to tell us how the Python extension is working for you?',
+    export const bannerMessage = l10n.t(
+        'Can you take 2 minutes to tell us how the Python extension is working for you?',
     );
-    export const bannerLabelYes = localize('ExtensionSurveyBanner.bannerLabelYes', 'Yes, take survey now');
-    export const bannerLabelNo = localize('ExtensionSurveyBanner.bannerLabelNo', 'No, thanks');
-    export const maybeLater = localize('ExtensionSurveyBanner.maybeLater', 'Maybe later');
-}
-
-export namespace Products {
-    export const installingModule = localize('products.installingModule', 'Installing {0}');
-    export const formatterNotInstalled = localize(
-        'products.formatterNotInstalled',
-        'Formatter {0} is not installed. Install?',
-    );
-    export const useFormatter = localize('products.useFormatter', 'Use {0}');
-    export const invalidFormatterPath = localize(
-        'products.invalidFormatterPath',
-        'Path to the {0} formatter is invalid ({1})',
-    );
+    export const bannerLabelYes = l10n.t('Yes, take survey now');
+    export const bannerLabelNo = l10n.t('No, thanks');
+    export const maybeLater = l10n.t('Maybe later');
 }
 export namespace DebugConfigStrings {
     export const selectConfiguration = {
-        title: localize('debug.selectConfigurationTitle'),
-        placeholder: localize('debug.selectConfigurationPlaceholder'),
+        title: l10n.t('Select a debug configuration'),
+        placeholder: l10n.t('Debug Configuration'),
     };
     export const launchJsonCompletions = {
-        label: localize('debug.launchJsonConfigurationsCompletionLabel'),
-        description: localize('debug.launchJsonConfigurationsCompletionDescription'),
+        label: l10n.t('Python'),
+        description: l10n.t('Select a Python debug configuration'),
     };
 
     export namespace file {
         export const snippet = {
-            name: localize('python.snippet.launch.standard.label'),
+            name: l10n.t('Python: Current File'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.debugFileConfigurationLabel'),
-            description: localize('debug.debugFileConfigurationDescription'),
+            label: l10n.t('Python File'),
+            description: l10n.t('Debug the currently active Python file'),
         };
     }
     export namespace module {
         export const snippet = {
-            name: localize('python.snippet.launch.module.label'),
-            default: localize('python.snippet.launch.module.default'),
+            name: l10n.t('Python: Module'),
+            default: l10n.t('enter-your-module-name'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.debugModuleConfigurationLabel'),
-            description: localize('debug.debugModuleConfigurationDescription'),
+            label: l10n.t('Module'),
+            description: l10n.t("Debug a Python module by invoking it with '-m'"),
         };
         export const enterModule = {
-            title: localize('debug.moduleEnterModuleTitle'),
-            prompt: localize('debug.moduleEnterModulePrompt'),
-            default: localize('debug.moduleEnterModuleDefault'),
-            invalid: localize('debug.moduleEnterModuleInvalidNameError'),
+            title: l10n.t('Debug Module'),
+            prompt: l10n.t('Enter a Python module/package name'),
+            default: l10n.t('enter-your-module-name'),
+            invalid: l10n.t('Enter a valid module name'),
         };
     }
     export namespace attach {
         export const snippet = {
-            name: localize('python.snippet.launch.attach.label'),
+            name: l10n.t('Python: Remote Attach'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.remoteAttachConfigurationLabel'),
-            description: localize('debug.remoteAttachConfigurationDescription'),
+            label: l10n.t('Remote Attach'),
+            description: l10n.t('Attach to a remote debug server'),
         };
         export const enterRemoteHost = {
-            title: localize('debug.attachRemoteHostTitle'),
-            prompt: localize('debug.attachRemoteHostPrompt'),
-            invalid: localize('debug.attachRemoteHostValidationError'),
+            title: l10n.t('Remote Debugging'),
+            prompt: l10n.t('Enter a valid host name or IP address'),
+            invalid: l10n.t('Enter a valid host name or IP address'),
         };
         export const enterRemotePort = {
-            title: localize('debug.attachRemotePortTitle'),
-            prompt: localize('debug.attachRemotePortPrompt'),
-            invalid: localize('debug.attachRemotePortValidationError'),
+            title: l10n.t('Remote Debugging'),
+            prompt: l10n.t('Enter the port number that the debug server is listening on'),
+            invalid: l10n.t('Enter a valid port number'),
         };
     }
     export namespace attachPid {
         export const snippet = {
-            name: localize('python.snippet.launch.attachpid.label'),
+            name: l10n.t('Python: Attach using Process Id'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.attachPidConfigurationLabel'),
-            description: localize('debug.attachPidConfigurationDescription'),
+            label: l10n.t('Attach using Process ID'),
+            description: l10n.t('Attach to a local process'),
         };
     }
     export namespace django {
         export const snippet = {
-            name: localize('python.snippet.launch.django.label'),
+            name: l10n.t('Python: Django'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.debugDjangoConfigurationLabel'),
-            description: localize('debug.debugDjangoConfigurationDescription'),
+            label: l10n.t('Django'),
+            description: l10n.t('Launch and debug a Django web application'),
         };
         export const enterManagePyPath = {
-            title: localize('debug.djangoEnterManagePyPathTitle'),
-            prompt: localize('debug.djangoEnterManagePyPathPrompt'),
-            invalid: localize('debug.djangoEnterManagePyPathInvalidFilePathError'),
+            title: l10n.t('Debug Django'),
+            prompt: l10n.t(
+                "Enter the path to manage.py ('${workspaceFolder}' points to the root of the current workspace folder)",
+            ),
+            invalid: l10n.t('Enter a valid Python file path'),
         };
     }
     export namespace fastapi {
         export const snippet = {
-            name: localize('python.snippet.launch.fastapi.label'),
+            name: l10n.t('Python: FastAPI'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.debugFastAPIConfigurationLabel'),
-            description: localize('debug.debugFastAPIConfigurationDescription'),
+            label: l10n.t('FastAPI'),
+            description: l10n.t('Launch and debug a FastAPI web application'),
         };
         export const enterAppPathOrNamePath = {
-            title: localize('debug.fastapiEnterAppPathOrNamePathTitle'),
-            prompt: localize('debug.fastapiEnterAppPathOrNamePathPrompt'),
-            invalid: localize('debug.fastapiEnterAppPathOrNamePathInvalidNameError'),
+            title: l10n.t('Debug FastAPI'),
+            prompt: l10n.t("Enter the path to the application, e.g. 'main.py' or 'main'"),
+            invalid: l10n.t('Enter a valid name'),
         };
     }
     export namespace flask {
         export const snippet = {
-            name: localize('python.snippet.launch.flask.label'),
+            name: l10n.t('Python: Flask'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.debugFlaskConfigurationLabel'),
-            description: localize('debug.debugFlaskConfigurationDescription'),
+            label: l10n.t('Flask'),
+            description: l10n.t('Launch and debug a Flask web application'),
         };
         export const enterAppPathOrNamePath = {
-            title: localize('debug.flaskEnterAppPathOrNamePathTitle'),
-            prompt: localize('debug.flaskEnterAppPathOrNamePathPrompt'),
-            invalid: localize('debug.flaskEnterAppPathOrNamePathInvalidNameError'),
+            title: l10n.t('Debug Flask'),
+            prompt: l10n.t('Python: Flask'),
+            invalid: l10n.t('Enter a valid name'),
         };
     }
     export namespace pyramid {
         export const snippet = {
-            name: localize('python.snippet.launch.pyramid.label'),
+            name: l10n.t('Python: Pyramid Application'),
         };
 
         export const selectConfiguration = {
-            label: localize('debug.debugPyramidConfigurationLabel'),
-            description: localize('debug.debugPyramidConfigurationDescription'),
+            label: l10n.t('Pyramid'),
+            description: l10n.t('Launch and debug a Pyramid web application'),
         };
         export const enterDevelopmentIniPath = {
-            title: localize('debug.pyramidEnterDevelopmentIniPathTitle'),
-            prompt: localize('debug.pyramidEnterDevelopmentIniPathPrompt'),
-            invalid: localize('debug.pyramidEnterDevelopmentIniPathInvalidFilePathError'),
+            title: l10n.t('Debug Pyramid'),
+            invalid: l10n.t('Enter a valid file path'),
         };
     }
 }
 
 export namespace Testing {
-    export const configureTests = localize('Testing.configureTests', 'Configure Test Framework');
-    export const testNotConfigured = localize('Testing.testNotConfigured', 'No test framework configured.');
+    export const configureTests = l10n.t('Configure Test Framework');
+    export const testNotConfigured = l10n.t('No test framework configured.');
+    export const cancelUnittestDiscovery = l10n.t('Canceled unittest test discovery');
+    export const errorUnittestDiscovery = l10n.t('Unittest test discovery error');
+    export const cancelPytestDiscovery = l10n.t('Canceled pytest test discovery');
+    export const errorPytestDiscovery = l10n.t('pytest test discovery error');
+    export const seePythonOutput = l10n.t('(see Output > Python)');
+    export const cancelUnittestExecution = l10n.t('Canceled unittest test execution');
+    export const errorUnittestExecution = l10n.t('Unittest test execution error');
+    export const cancelPytestExecution = l10n.t('Canceled pytest test execution');
+    export const errorPytestExecution = l10n.t('Pytest test execution error');
 }
 
 export namespace OutdatedDebugger {
-    export const outdatedDebuggerMessage = localize(
-        'OutdatedDebugger.updateDebuggerMessage',
-        'We noticed you are attaching to ptvsd (Python debugger), which was deprecated on May 1st, 2020. Please switch to [debugpy](https://aka.ms/migrateToDebugpy).',
+    export const outdatedDebuggerMessage = l10n.t(
+        'We noticed you are attaching to ptvsd (Python debugger), which was deprecated on May 1st, 2020. Use [debugpy](https://aka.ms/migrateToDebugpy) instead.',
     );
 }
 
 export namespace Python27Support {
-    export const jediMessage = localize(
-        'Python27Support.jediMessage',
+    export const jediMessage = l10n.t(
         'IntelliSense with Jedi for Python 2.7 is no longer supported. [Learn more](https://aka.ms/python-27-support).',
     );
 }
 
 export namespace SwitchToDefaultLS {
-    export const bannerMessage = localize(
-        'SwitchToDefaultLS.bannerMessage',
+    export const bannerMessage = l10n.t(
         "The Microsoft Python Language Server has reached end of life. Your language server has been set to the default for Python in VS Code, Pylance.\n\nIf you'd like to change your language server, you can learn about how to do so [here](https://devblogs.microsoft.com/python/python-in-visual-studio-code-may-2021-release/#configuring-your-language-server).\n\nRead Pylance's license [here](https://marketplace.visualstudio.com/items/ms-python.vscode-pylance/license).",
     );
 }
 
-function localize(key: string, defValue?: string) {
-    // Return a pointer to function so that we refetch it on each call.
-    return (): string => getString(key, defValue);
-}
+export namespace CreateEnv {
+    export const informEnvCreation = l10n.t('The following environment is selected:');
+    export const statusTitle = l10n.t('Creating environment');
+    export const statusStarting = l10n.t('Starting...');
 
-function getString(key: string, defValue?: string) {
-    if (shouldLoadUsingNodeFS()) {
-        loadLocalizedStringsUsingNodeFS(new FileSystem());
+    export const hasVirtualEnv = l10n.t('Workspace folder contains a virtual environment');
+
+    export const noWorkspace = l10n.t('A workspace is required when creating an environment using venv.');
+
+    export const pickWorkspacePlaceholder = l10n.t('Select a workspace to create environment');
+
+    export const providersQuickPickPlaceholder = l10n.t('Select an environment type');
+
+    export namespace Venv {
+        export const creating = l10n.t('Creating venv...');
+        export const creatingMicrovenv = l10n.t('Creating microvenv...');
+        export const created = l10n.t('Environment created...');
+        export const existing = l10n.t('Using existing environment...');
+        export const downloadingPip = l10n.t('Downloading pip...');
+        export const installingPip = l10n.t('Installing pip...');
+        export const upgradingPip = l10n.t('Upgrading pip...');
+        export const installingPackages = l10n.t('Installing packages...');
+        export const errorCreatingEnvironment = l10n.t('Error while creating virtual environment.');
+        export const selectPythonPlaceHolder = l10n.t('Select a Python installation to create the virtual environment');
+        export const providerDescription = l10n.t('Creates a `.venv` virtual environment in the current workspace');
+        export const error = l10n.t('Creating virtual environment failed with error.');
+        export const tomlExtrasQuickPickTitle = l10n.t('Select optional dependencies to install from pyproject.toml');
+        export const requirementsQuickPickTitle = l10n.t('Select dependencies to install');
     }
-    return getLocalizedString(key, defValue);
+
+    export namespace Conda {
+        export const condaMissing = l10n.t('Install `conda` to create conda environments.');
+        export const created = l10n.t('Environment created...');
+        export const installingPackages = l10n.t('Installing packages...');
+        export const errorCreatingEnvironment = l10n.t('Error while creating conda environment.');
+        export const selectPythonQuickPickPlaceholder = l10n.t(
+            'Select the version of Python to install in the environment',
+        );
+        export const creating = l10n.t('Creating conda environment...');
+        export const providerDescription = l10n.t('Creates a `.conda` Conda environment in the current workspace');
+    }
 }
 
-// Default to loading the current locale
-loadLocalizedStringsUsingNodeFS(new FileSystem());
+export namespace ToolsExtensions {
+    export const flake8PromptMessage = l10n.t(
+        'Use the Flake8 extension to enable easier configuration and new features such as quick fixes.',
+    );
+    export const pylintPromptMessage = l10n.t(
+        'Use the Pylint extension to enable easier configuration and new features such as quick fixes.',
+    );
+    export const isortPromptMessage = l10n.t(
+        'To use sort imports, install the isort extension. It provides easier configuration and new features such as code actions.',
+    );
+    export const installPylintExtension = l10n.t('Install Pylint extension');
+    export const installFlake8Extension = l10n.t('Install Flake8 extension');
+    export const installISortExtension = l10n.t('Install isort extension');
+
+    export const selectBlackFormatterPrompt = l10n.t(
+        'You have the Black formatter extension installed, would you like to use that as the default formatter?',
+    );
+
+    export const selectAutopep8FormatterPrompt = l10n.t(
+        'You have the Autopep8 formatter extension installed, would you like to use that as the default formatter?',
+    );
+
+    export const selectMultipleFormattersPrompt = l10n.t(
+        'You have multiple formatters installed, would you like to select one as the default formatter?',
+    );
+
+    export const installBlackFormatterPrompt = l10n.t(
+        'You triggered formatting with Black, would you like to install one of our new formatter extensions? This will also set it as the default formatter for Python.',
+    );
+
+    export const installAutopep8FormatterPrompt = l10n.t(
+        'You triggered formatting with Autopep8, would you like to install one of our new formatter extension? This will also set it as the default formatter for Python.',
+    );
+}

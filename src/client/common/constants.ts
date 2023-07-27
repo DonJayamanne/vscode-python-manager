@@ -54,11 +54,22 @@ export namespace Octicons {
     export const Search_Stop = '$(search-stop)';
     export const Star = '$(star-full)';
     export const Gear = '$(gear)';
+    export const Warning = '$(warning)';
+    export const Error = '$(error)';
+    export const Lightbulb = '$(lightbulb)';
+}
+
+/**
+ * Look at https://code.visualstudio.com/api/references/icons-in-labels#icon-listing for ThemeIcon ids.
+ * Using a theme icon is preferred over a custom icon as it gives product theme authors the possibility
+ * to change the icons.
+ */
+export namespace ThemeIcons {
+    export const Refresh = 'refresh';
+    export const SpinningLoader = 'loading~spin';
 }
 
 export const DEFAULT_INTERPRETER_SETTING = 'python';
-
-export const STANDARD_OUTPUT_CHANNEL = 'STANDARD_OUTPUT_CHANNEL';
 
 export const isCI = process.env.TRAVIS === 'true' || process.env.TF_BUILD !== undefined;
 

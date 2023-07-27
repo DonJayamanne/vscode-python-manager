@@ -8,16 +8,12 @@ import { IDisposable } from '../types';
 import { createDeferred } from '../utils/async';
 import { EnvironmentVariables } from '../variables/types';
 import { DEFAULT_ENCODING } from './constants';
-import {
-    ExecutionResult,
-    IBufferDecoder,
-    ObservableExecutionResult,
-    Output,
-    ShellOptions,
-    SpawnOptions,
-    StdErrError,
-} from './types';
+import { ExecutionResult, ObservableExecutionResult, Output, ShellOptions, SpawnOptions, StdErrError } from './types';
 import { noop } from '../utils/misc';
+import { decodeBuffer } from './decoder';
+import { traceVerbose } from '../../logging';
+
+const PS_ERROR_SCREEN_BOGUS = /your [0-9]+x[0-9]+ screen size is bogus\. expect trouble/;
 
 function getDefaultOptions<T extends ShellOptions | SpawnOptions>(options: T, defaultEnv?: EnvironmentVariables): T {
     const defaultOptions = { ...options };
@@ -58,6 +54,7 @@ export function shellExec(
     disposables?: Set<IDisposable>,
 ): Promise<ExecutionResult<string>> {
     const shellOptions = getDefaultOptions(options, defaultEnv);
+    traceVerbose(`Shell Exec: ${command} with options: ${JSON.stringify(shellOptions, null, 4)}`);
     return new Promise((resolve, reject) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const callback = (e: any, stdout: any, stderr: any) => {
@@ -90,7 +87,6 @@ export function plainExec(
     file: string,
     args: string[],
     options: SpawnOptions = {},
-    decoder?: IBufferDecoder,
     defaultEnv?: EnvironmentVariables,
     disposables?: Set<IDisposable>,
 ): Promise<ExecutionResult<string>> {
@@ -104,7 +100,7 @@ export function plainExec(
     const deferred = createDeferred<ExecutionResult<string>>();
     const disposable: IDisposable = {
         dispose: () => {
-            if (!proc.killed && !deferred.completed) {
+            if (!proc.killed) {
                 proc.kill();
             }
         },
@@ -125,7 +121,10 @@ export function plainExec(
     }
 
     const stdoutBuffers: Buffer[] = [];
-    on(proc.stdout, 'data', (data: Buffer) => stdoutBuffers.push(data));
+    on(proc.stdout, 'data', (data: Buffer) => {
+        stdoutBuffers.push(data);
+        options.outputChannel?.append(data.toString());
+    });
     const stderrBuffers: Buffer[] = [];
     on(proc.stderr, 'data', (data: Buffer) => {
         if (options.mergeStdOutErr) {
@@ -134,6 +133,7 @@ export function plainExec(
         } else {
             stderrBuffers.push(data);
         }
+        options.outputChannel?.append(data.toString());
     });
 
     proc.once('close', () => {
@@ -141,19 +141,27 @@ export function plainExec(
             return;
         }
         const stderr: string | undefined =
-            stderrBuffers.length === 0 ? undefined : decoder?.decode(stderrBuffers, encoding);
-        if (stderr && stderr.length > 0 && options.throwOnStdErr) {
+            stderrBuffers.length === 0 ? undefined : decodeBuffer(stderrBuffers, encoding);
+        if (
+            stderr &&
+            stderr.length > 0 &&
+            options.throwOnStdErr &&
+            // ignore this specific error silently; see this issue for context: https://github.com/microsoft/vscode/issues/75932
+            !(PS_ERROR_SCREEN_BOGUS.test(stderr) && stderr.replace(PS_ERROR_SCREEN_BOGUS, '').trim().length === 0)
+        ) {
             deferred.reject(new StdErrError(stderr));
         } else {
-            let stdout = decoder ? decoder.decode(stdoutBuffers, encoding) : '';
+            let stdout = decodeBuffer(stdoutBuffers, encoding);
             stdout = filterOutputUsingCondaRunMarkers(stdout);
             deferred.resolve({ stdout, stderr });
         }
         internalDisposables.forEach((d) => d.dispose());
+        disposable.dispose();
     });
     proc.once('error', (ex) => {
         deferred.reject(ex);
         internalDisposables.forEach((d) => d.dispose());
+        disposable.dispose();
     });
 
     return deferred.promise;
@@ -177,7 +185,6 @@ export function execObservable(
     file: string,
     args: string[],
     options: SpawnOptions = {},
-    decoder?: IBufferDecoder,
     defaultEnv?: EnvironmentVariables,
     disposables?: Set<IDisposable>,
 ): ObservableExecutionResult<string> {
@@ -187,7 +194,7 @@ export function execObservable(
     let procExited = false;
     const disposable: IDisposable = {
         dispose() {
-            if (proc && !proc.killed && !procExited) {
+            if (proc && proc.pid && !proc.killed && !procExited) {
                 killPid(proc.pid);
             }
             if (proc) {
@@ -220,7 +227,7 @@ export function execObservable(
         }
 
         const sendOutput = (source: 'stdout' | 'stderr', data: Buffer) => {
-            let out = decoder ? decoder.decode([data], encoding) : '';
+            let out = decodeBuffer([data], encoding);
             if (source === 'stderr' && options.throwOnStdErr) {
                 subscriber.error(new StdErrError(out));
             } else {

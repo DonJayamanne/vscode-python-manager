@@ -1,10 +1,14 @@
 import { SemVer } from 'semver';
-import { CodeLensProvider, ConfigurationTarget, Disposable, Event, TextDocument, Uri } from 'vscode';
+import { ConfigurationTarget, Disposable, Event, Uri } from 'vscode';
 import { FileChangeType } from '../common/platform/fileSystemWatcher';
 import { Resource } from '../common/types';
 import { PythonEnvSource } from '../pythonEnvironments/base/info';
-import { PythonLocatorQuery } from '../pythonEnvironments/base/locator';
-import { CondaEnvironmentInfo } from '../pythonEnvironments/common/environmentManagers/conda';
+import {
+    ProgressNotificationEvent,
+    PythonLocatorQuery,
+    TriggerRefreshOptions,
+} from '../pythonEnvironments/base/locator';
+import { CondaEnvironmentInfo, CondaInfo } from '../pythonEnvironments/common/environmentManagers/conda';
 import { EnvironmentType, PythonEnvironment } from '../pythonEnvironments/info';
 
 export type PythonEnvironmentsChangedEvent = {
@@ -16,9 +20,9 @@ export type PythonEnvironmentsChangedEvent = {
 
 export const IComponentAdapter = Symbol('IComponentAdapter');
 export interface IComponentAdapter {
-    readonly onRefreshStart: Event<void>;
-    triggerRefresh(query?: PythonLocatorQuery & { clearCache?: boolean }): Promise<void>;
-    readonly refreshPromise: Promise<void> | undefined;
+    readonly onProgress: Event<ProgressNotificationEvent>;
+    triggerRefresh(query?: PythonLocatorQuery, options?: TriggerRefreshOptions): Promise<void>;
+    getRefreshPromise(): Promise<void> | undefined;
     readonly onChanged: Event<PythonEnvironmentsChangedEvent>;
     // VirtualEnvPrompt
     onDidCreate(resource: Resource, callback: () => void): Disposable;
@@ -46,7 +50,7 @@ export interface IComponentAdapter {
     // Undefined is expected on this API, if the environment is not conda env.
     getCondaEnvironment(interpreterPath: string): Promise<CondaEnvironmentInfo | undefined>;
 
-    isWindowsStoreInterpreter(pythonPath: string): Promise<boolean>;
+    isMicrosoftStoreInterpreter(pythonPath: string): Promise<boolean>;
 }
 
 export const ICondaService = Symbol('ICondaService');
@@ -55,23 +59,34 @@ export const ICondaService = Symbol('ICondaService');
  */
 export interface ICondaService {
     getCondaFile(forShellExecution?: boolean): Promise<string>;
+    getCondaInfo(): Promise<CondaInfo | undefined>;
     isCondaAvailable(): Promise<boolean>;
     getCondaVersion(): Promise<SemVer | undefined>;
     getInterpreterPathForEnvironment(condaEnv: CondaEnvironmentInfo): Promise<string | undefined>;
     getCondaFileFromInterpreter(interpreterPath?: string, envName?: string): Promise<string | undefined>;
+    getActivationScriptFromInterpreter(
+        interpreterPath?: string,
+        envName?: string,
+    ): Promise<{ path: string | undefined; type: 'local' | 'global' } | undefined>;
 }
 
 export const IInterpreterService = Symbol('IInterpreterService');
 export interface IInterpreterService {
-    readonly onRefreshStart: Event<void>;
-    triggerRefresh(query?: PythonLocatorQuery & { clearCache?: boolean }): Promise<void>;
+    triggerRefresh(query?: PythonLocatorQuery, options?: TriggerRefreshOptions): Promise<void>;
     readonly refreshPromise: Promise<void> | undefined;
     readonly onDidChangeInterpreters: Event<PythonEnvironmentsChangedEvent>;
     onDidChangeInterpreterConfiguration: Event<Uri | undefined>;
-    onDidChangeInterpreter: Event<void>;
+    onDidChangeInterpreter: Event<Uri | undefined>;
     onDidChangeInterpreterInformation: Event<PythonEnvironment>;
+    /**
+     * Note this API does not trigger the refresh but only works with the current refresh if any. Information
+     * returned by this is more or less upto date but is not guaranteed to be.
+     */
     hasInterpreters(filter?: (e: PythonEnvironment) => Promise<boolean>): Promise<boolean>;
     getInterpreters(resource?: Uri): PythonEnvironment[];
+    /**
+     * @deprecated Only exists for old Jupyter integration.
+     */
     getAllInterpreters(resource?: Uri): Promise<PythonEnvironment[]>;
     getActiveInterpreter(resource?: Uri): Promise<PythonEnvironment | undefined>;
     getInterpreterDetails(pythonPath: string, resoure?: Uri): Promise<undefined | PythonEnvironment>;
@@ -106,3 +121,8 @@ export type WorkspacePythonPath = {
     folderUri: Uri;
     configTarget: ConfigurationTarget.Workspace | ConfigurationTarget.WorkspaceFolder;
 };
+
+export const IActivatedEnvironmentLaunch = Symbol('IActivatedEnvironmentLaunch');
+export interface IActivatedEnvironmentLaunch {
+    selectIfLaunchedViaActivatedEnv(doNotBlockOnSelection?: boolean): Promise<string | undefined>;
+}

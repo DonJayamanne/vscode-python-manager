@@ -27,7 +27,7 @@ export interface Deferred<T> {
     readonly rejected: boolean;
     readonly completed: boolean;
     resolve(value?: T | PromiseLike<T>): void;
-    reject(reason?: string | Error | Record<string, unknown>): void;
+    reject(reason?: string | Error | Record<string, unknown> | unknown): void;
 }
 
 class DeferredImpl<T> implements Deferred<T> {
@@ -50,11 +50,17 @@ class DeferredImpl<T> implements Deferred<T> {
     }
 
     public resolve(_value: T | PromiseLike<T>) {
+        if (this.completed) {
+            return;
+        }
         this._resolve.apply(this.scope ? this.scope : this, [_value]);
         this._resolved = true;
     }
 
     public reject(_reason?: string | Error | Record<string, unknown>) {
+        if (this.completed) {
+            return;
+        }
         this._reject.apply(this.scope ? this.scope : this, [_reason]);
         this._rejected = true;
     }

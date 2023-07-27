@@ -10,8 +10,9 @@ import { ICommandManager } from '../../common/application/types';
 import { Commands } from '../../common/constants';
 import '../../common/extensions';
 import { IFileSystem } from '../../common/platform/types';
-import { IDisposableRegistry, Resource } from '../../common/types';
+import { IDisposableRegistry, IConfigurationService, Resource } from '../../common/types';
 import { noop } from '../../common/utils/misc';
+import { IInterpreterService } from '../../interpreter/contracts';
 import { IServiceContainer } from '../../ioc/types';
 import { traceError } from '../../logging';
 import { sendTelemetryEvent } from '../../telemetry';
@@ -25,6 +26,7 @@ export class CodeExecutionManager implements ICodeExecutionManager {
         @inject(ICommandManager) private commandManager: ICommandManager,
         @inject(IDisposableRegistry) private disposableRegistry: Disposable[],
         @inject(IFileSystem) private fileSystem: IFileSystem,
+        @inject(IConfigurationService) private readonly configSettings: IConfigurationService,
         @inject(IServiceContainer) private serviceContainer: IServiceContainer,
     ) {}
 
@@ -44,15 +46,26 @@ export class CodeExecutionManager implements ICodeExecutionManager {
             );
         });
     }
-    private async executeFileInTerminal(file: Resource, trigger: 'command' | 'icon') {
-        sendTelemetryEvent(EventName.EXECUTION_CODE, undefined, { scope: 'file', trigger });
+    private async executeFileInTerminal(
+        file: Resource,
+        trigger: 'command' | 'icon',
+        options?: { newTerminalPerFile: boolean },
+    ): Promise<void> {
+        sendTelemetryEvent(EventName.EXECUTION_CODE, undefined, {
+            scope: 'file',
+            trigger,
+            newTerminalPerFile: options?.newTerminalPerFile,
+        });
         const codeExecutionHelper = this.serviceContainer.get<ICodeExecutionHelper>(ICodeExecutionHelper);
         file = file instanceof Uri ? file : undefined;
-        const fileToExecute = file ? file : await codeExecutionHelper.getFileToExecute();
+        let fileToExecute = file ? file : await codeExecutionHelper.getFileToExecute();
         if (!fileToExecute) {
             return;
         }
-        await codeExecutionHelper.saveFileIfDirty(fileToExecute);
+        const fileAfterSave = await codeExecutionHelper.saveFileIfDirty(fileToExecute);
+        if (fileAfterSave) {
+            fileToExecute = fileAfterSave;
+        }
 
         try {
             const contents = await this.fileSystem.readFile(fileToExecute.fsPath);
@@ -64,6 +77,6 @@ export class CodeExecutionManager implements ICodeExecutionManager {
         }
 
         const executionService = this.serviceContainer.get<ICodeExecutionService>(ICodeExecutionService, 'standard');
-        await executionService.executeFile(fileToExecute);
+        await executionService.executeFile(fileToExecute, options);
     }
 }

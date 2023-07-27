@@ -6,7 +6,7 @@
 import { inject, injectable, named } from 'inversify';
 import { Memento } from 'vscode';
 import { IExtensionSingleActivationService } from '../activation/types';
-import { traceError, traceVerbose } from '../logging';
+import { traceError, traceVerbose, traceWarn } from '../logging';
 import { ICommandManager } from './application/types';
 import { Commands } from './constants';
 import {
@@ -18,6 +18,7 @@ import {
     WORKSPACE_MEMENTO,
 } from './types';
 import { cache } from './utils/decorators';
+import { noop } from './utils/misc';
 
 export class PersistentState<T> implements IPersistentState<T> {
     constructor(
@@ -40,12 +41,23 @@ export class PersistentState<T> implements IPersistentState<T> {
         }
     }
 
-    public async updateValue(newValue: T): Promise<void> {
+    public async updateValue(newValue: T, retryOnce = true): Promise<void> {
         try {
             if (this.expiryDurationMs) {
                 await this.storage.update(this.key, { data: newValue, expiry: Date.now() + this.expiryDurationMs });
             } else {
                 await this.storage.update(this.key, newValue);
+            }
+            if (retryOnce && JSON.stringify(this.value) != JSON.stringify(newValue)) {
+                // Due to a VSCode bug sometimes the changes are not reflected in the storage, atleast not immediately.
+                // It is noticed however that if we reset the storage first and then update it, it works.
+                // https://github.com/microsoft/vscode/issues/171827
+                traceVerbose('Storage update failed for key', this.key, ' retrying by resetting first');
+                await this.updateValue(undefined as any, false);
+                await this.updateValue(newValue, false);
+                if (JSON.stringify(this.value) != JSON.stringify(newValue)) {
+                    traceWarn('Retry failed, storage update failed for key', this.key);
+                }
             }
         } catch (ex) {
             traceError('Error while updating storage for key:', this.key, ex);
@@ -74,7 +86,6 @@ export class PersistentStateFactory implements IPersistentStateFactory, IExtensi
         WORKSPACE_PERSISTENT_KEYS,
         [],
     );
-    private cleanedOnce = false;
     constructor(
         @inject(IMemento) @named(GLOBAL_MEMENTO) private globalState: Memento,
         @inject(IMemento) @named(WORKSPACE_MEMENTO) private workspaceState: Memento,
@@ -130,10 +141,6 @@ export class PersistentStateFactory implements IPersistentStateFactory, IExtensi
     }
 
     private async cleanAllPersistentStates(): Promise<void> {
-        if (this.cleanedOnce) {
-            traceError('Storage can only be cleaned once per session, reload window.');
-            return;
-        }
         await Promise.all(
             this._globalKeysStorage.value.map(async (keyContent) => {
                 const storage = this.createGlobalPersistentState(keyContent.key);
@@ -148,8 +155,7 @@ export class PersistentStateFactory implements IPersistentStateFactory, IExtensi
         );
         await this._globalKeysStorage.updateValue([]);
         await this._workspaceKeysStorage.updateValue([]);
-        this.cleanedOnce = true;
-        traceVerbose('Finished clearing storage.');
+        this.cmdManager?.executeCommand('workbench.action.reloadWindow').then(noop);
     }
 }
 
@@ -157,7 +163,7 @@ export class PersistentStateFactory implements IPersistentStateFactory, IExtensi
 // a simpler, alternate API
 // for components to use
 
-interface IPersistentStorage<T> {
+export interface IPersistentStorage<T> {
     get(): T;
     set(value: T): Promise<void>;
 }
@@ -167,7 +173,7 @@ interface IPersistentStorage<T> {
  */
 export function getGlobalStorage<T>(context: IExtensionContext, key: string, defaultValue?: T): IPersistentStorage<T> {
     const globalKeysStorage = new PersistentState<KeysStorage[]>(context.globalState, GLOBAL_PERSISTENT_KEYS, []);
-    const found = globalKeysStorage.value.find((value) => value.key === key && value.defaultValue === defaultValue);
+    const found = globalKeysStorage.value.find((value) => value.key === key);
     if (!found) {
         const newValue = [{ key, defaultValue }, ...globalKeysStorage.value];
         globalKeysStorage.updateValue(newValue).ignoreErrors();

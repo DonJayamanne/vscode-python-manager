@@ -7,9 +7,11 @@ import { inject, injectable } from 'inversify';
 import { traceLog } from '../../logging';
 import { IWorkspaceService } from '../application/types';
 import { isCI, isTestExecution } from '../constants';
-import { Logging } from '../utils/localize';
 import { getOSType, getUserHomeDir, OSType } from '../utils/platform';
 import { IProcessLogger, SpawnOptions } from './types';
+import { escapeRegExp } from 'lodash';
+import { replaceAll } from '../stringUtils';
+import { identifyShellFromShellPath } from '../terminal/shellDetectors/baseShellDetector';
 
 @injectable()
 export class ProcessLogger implements IProcessLogger {
@@ -25,8 +27,12 @@ export class ProcessLogger implements IProcessLogger {
             ? [fileOrCommand, ...args].map((e) => e.trimQuotes().toCommandArgumentForPythonExt()).join(' ')
             : fileOrCommand;
         const info = [`> ${this.getDisplayCommands(command)}`];
-        if (options && options.cwd) {
-            info.push(`${Logging.currentWorkingDirectory()} ${this.getDisplayCommands(options.cwd)}`);
+        if (options?.cwd) {
+            const cwd: string = typeof options?.cwd === 'string' ? options?.cwd : options?.cwd?.toString();
+            info.push(`cwd: ${this.getDisplayCommands(cwd)}`);
+        }
+        if (typeof options?.shell === 'string') {
+            info.push(`shell: ${identifyShellFromShellPath(options?.shell)}`);
         }
 
         info.forEach((line) => {
@@ -50,10 +56,33 @@ export class ProcessLogger implements IProcessLogger {
  * Finds case insensitive matches in the original string and replaces it with character provided.
  */
 function replaceMatchesWithCharacter(original: string, match: string, character: string): string {
-    // Backslashes have special meaning in regexes, we need an extra backlash so
-    // it's not considered special. Also match both forward and backward slash
-    // versions of 'match' for Windows.
-    const pattern = match.replaceAll('\\', getOSType() === OSType.Windows ? '(\\\\|/)' : '\\\\');
-    let regex = new RegExp(pattern, 'ig');
-    return original.replace(regex, character);
+    // Backslashes, plus signs, brackets and other characters have special meaning in regexes,
+    // we need to escape using an extra backlash so it's not considered special.
+    function getRegex(match: string) {
+        let pattern = escapeRegExp(match);
+        if (getOSType() === OSType.Windows) {
+            // Match both forward and backward slash versions of 'match' for Windows.
+            pattern = replaceAll(pattern, '\\\\', '(\\\\|/)');
+        }
+        let regex = new RegExp(pattern, 'ig');
+        return regex;
+    }
+
+    function isPrevioustoMatchRegexALetter(chunk: string, index: number) {
+        return chunk[index].match(/[a-z]/);
+    }
+
+    let chunked = original.split(' ');
+
+    for (let i = 0; i < chunked.length; i++) {
+        let regex = getRegex(match);
+        const regexResult = regex.exec(chunked[i]);
+        if (regexResult) {
+            const regexIndex = regexResult.index;
+            if (regexIndex > 0 && isPrevioustoMatchRegexALetter(chunked[i], regexIndex - 1))
+                regex = getRegex(match.substring(1));
+            chunked[i] = chunked[i].replace(regex, character);
+        }
+    }
+    return chunked.join(' ');
 }

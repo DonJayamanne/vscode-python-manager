@@ -4,6 +4,7 @@
 import * as fsapi from 'fs-extra';
 import * as path from 'path';
 import '../../../common/extensions';
+import { splitLines } from '../../../common/stringUtils';
 import { getEnvironmentVariable, getOSType, getUserHomeDir, OSType } from '../../../common/utils/platform';
 import { PythonVersion, UNKNOWN_PYTHON_VERSION } from '../../base/info';
 import { comparePythonVersionSpecificity } from '../../base/info/env';
@@ -28,6 +29,15 @@ function getPyvenvConfigPathsFrom(interpreterPath: string): string[] {
 
     // The paths are ordered in the most common to least common
     return [venvPath1, venvPath2];
+}
+
+/**
+ * Checks if the given interpreter is a virtual environment.
+ * @param {string} interpreterPath: Absolute path to the python interpreter.
+ * @returns {boolean} : Returns true if the interpreter belongs to a venv environment.
+ */
+export async function isVirtualEnvironment(interpreterPath: string): Promise<boolean> {
+    return isVenvEnvironment(interpreterPath);
 }
 
 /**
@@ -127,7 +137,7 @@ export async function getPythonVersionFromPyvenvCfg(interpreterPath: string): Pr
     for (const configPath of configPaths) {
         if (await pathExists(configPath)) {
             try {
-                const lines = (await readFile(configPath)).splitLines();
+                const lines = splitLines(await readFile(configPath));
 
                 const pythonVersions = lines
                     .map((line) => {

@@ -14,10 +14,10 @@ import {
     InputBoxOptions,
     languages,
     LanguageStatusItem,
+    LogOutputChannel,
     MessageItem,
     MessageOptions,
     OpenDialogOptions,
-    OutputChannel,
     Progress,
     ProgressOptions,
     QuickPick,
@@ -122,8 +122,14 @@ export class ApplicationShell implements IApplicationShell {
         return window.setStatusBarMessage(text, arg);
     }
 
-    public createStatusBarItem(alignment?: StatusBarAlignment, priority?: number): StatusBarItem {
-        return window.createStatusBarItem(alignment, priority);
+    public createStatusBarItem(
+        alignment?: StatusBarAlignment,
+        priority?: number,
+        id?: string | undefined,
+    ): StatusBarItem {
+        return id
+            ? window.createStatusBarItem(id, alignment, priority)
+            : window.createStatusBarItem(alignment, priority);
     }
     public showWorkspaceFolderPick(options?: WorkspaceFolderPickOptions): Thenable<WorkspaceFolder | undefined> {
         return window.showWorkspaceFolderPick(options);
@@ -160,8 +166,8 @@ export class ApplicationShell implements IApplicationShell {
     public createTreeView<T>(viewId: string, options: TreeViewOptions<T>): TreeView<T> {
         return window.createTreeView<T>(viewId, options);
     }
-    public createOutputChannel(name: string): OutputChannel {
-        return window.createOutputChannel(name);
+    public createOutputChannel(name: string): LogOutputChannel {
+        return window.createOutputChannel(name, { log: true });
     }
     public createLanguageStatusItem(id: string, selector: DocumentSelector): LanguageStatusItem {
         return languages.createLanguageStatusItem(id, selector);

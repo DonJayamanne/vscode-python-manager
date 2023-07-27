@@ -3,22 +3,20 @@
 
 import { injectable } from 'inversify';
 import * as path from 'path';
-import { CancellationToken, ProgressLocation, ProgressOptions } from 'vscode';
+import { CancellationToken, l10n, ProgressLocation, ProgressOptions } from 'vscode';
 import { IInterpreterService } from '../../interpreter/contracts';
 import { IServiceContainer } from '../../ioc/types';
 import { traceError, traceLog } from '../../logging';
-import { EnvironmentType, ModuleInstallerType } from '../../pythonEnvironments/info';
+import { EnvironmentType, ModuleInstallerType, virtualEnvTypes } from '../../pythonEnvironments/info';
 import { sendTelemetryEvent } from '../../telemetry';
 import { EventName } from '../../telemetry/constants';
 import { IApplicationShell } from '../application/types';
 import { wrapCancellationTokens } from '../cancellation';
-import { STANDARD_OUTPUT_CHANNEL } from '../constants';
 import { IFileSystem } from '../platform/types';
 import * as internalPython from '../process/internal/python';
 import { IProcessServiceFactory } from '../process/types';
 import { ITerminalServiceFactory, TerminalCreationOptions } from '../terminal/types';
-import { ExecutionInfo, IConfigurationService, IOutputChannel, Product } from '../types';
-import { Products } from '../utils/localize';
+import { ExecutionInfo, IConfigurationService, ILogOutputChannel, Product } from '../types';
 import { isResource } from '../utils/misc';
 import { ProductNames } from './productNames';
 import { IModuleInstaller, InstallOptions, InterpreterUri, ModuleInstallFlags } from './types';
@@ -98,6 +96,15 @@ export abstract class ModuleInstaller implements IModuleInstaller {
                         token,
                         executionInfo.useShell,
                     );
+                } else if (virtualEnvTypes.includes(interpreter.envType)) {
+                    await this.executeCommand(
+                        shouldExecuteInTerminal,
+                        resource,
+                        pythonPath,
+                        args,
+                        token,
+                        executionInfo.useShell,
+                    );
                 } else {
                     await this.executeCommand(
                         shouldExecuteInTerminal,
@@ -128,7 +135,7 @@ export abstract class ModuleInstaller implements IModuleInstaller {
             const options: ProgressOptions = {
                 location: ProgressLocation.Notification,
                 cancellable: true,
-                title: Products.installingModule().format(name),
+                title: l10n.t('Installing {0}', name),
             };
             await shell.withProgress(options, async (_, token: CancellationToken) =>
                 install(wrapCancellationTokens(token, cancel)),
@@ -144,7 +151,7 @@ export abstract class ModuleInstaller implements IModuleInstaller {
         const options = {
             name: 'VS Code Python',
         };
-        const outputChannel = this.serviceContainer.get<IOutputChannel>(IOutputChannel, STANDARD_OUTPUT_CHANNEL);
+        const outputChannel = this.serviceContainer.get<ILogOutputChannel>(ILogOutputChannel);
         const command = `"${execPath.replace(/\\/g, '/')}" ${args.join(' ')}`;
 
         traceLog(`[Elevated] ${command}`);

@@ -8,7 +8,7 @@ import { TextDocument } from 'vscode';
 import { IActiveResourceService, IDocumentManager, IWorkspaceService } from '../common/application/types';
 import { PYTHON_LANGUAGE } from '../common/constants';
 import { IFileSystem } from '../common/platform/types';
-import { IDisposable, Resource } from '../common/types';
+import { IDisposable, IInterpreterPathService, Resource } from '../common/types';
 import { Deferred } from '../common/utils/async';
 import { traceDecoratorError } from '../logging';
 import { sendActivationTelemetry } from '../telemetry/envFileTelemetry';
@@ -25,14 +25,17 @@ export class ExtensionActivationManager implements IExtensionActivationManager {
     private docOpenedHandler?: IDisposable;
 
     constructor(
-        @multiInject(IExtensionActivationService) private readonly activationServices: IExtensionActivationService[],
+        @multiInject(IExtensionActivationService) private activationServices: IExtensionActivationService[],
         @multiInject(IExtensionSingleActivationService)
-        private readonly singleActivationServices: IExtensionSingleActivationService[],
+        private singleActivationServices: IExtensionSingleActivationService[],
         @inject(IDocumentManager) private readonly documentManager: IDocumentManager,
         @inject(IWorkspaceService) private readonly workspaceService: IWorkspaceService,
         @inject(IFileSystem) private readonly fileSystem: IFileSystem,
         @inject(IActiveResourceService) private readonly activeResourceService: IActiveResourceService,
-    ) {
+        @inject(IInterpreterPathService) private readonly interpreterPathService: IInterpreterPathService,
+    ) {}
+
+    private filterServices() {
         if (!this.workspaceService.isTrusted) {
             this.activationServices = this.activationServices.filter(
                 (service) => service.supportedWorkspaceTypes.untrustedWorkspace,
@@ -63,6 +66,7 @@ export class ExtensionActivationManager implements IExtensionActivationManager {
     }
 
     public async activate(): Promise<void> {
+        this.filterServices();
         await this.initialize();
 
         // Activate all activation services together.

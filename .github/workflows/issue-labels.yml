@@ -4,36 +4,33 @@ on:
   issues:
     types: [opened, reopened]
 
+env:
+  # To update the list of labels, see `getLabels.js`.
+  REPO_LABELS: '["area-api","area-data science","area-debugging","area-diagnostics","area-editor-*","area-environments","area-formatting","area-intellisense","area-internal","area-linting","area-terminal","area-testing","author-verification-requested","bug","community ask","debt","dependencies","documentation","experimenting","feature-request","good first issue","help wanted","important","info-needed","invalid-testplan-item","investigating","iteration-candidate","iteration-plan","iteration-plan-draft","javascript","linux","macos","meta","needs community feedback","needs PR","needs proposal","needs spike","no-changelog","on-testplan","partner ask","regression","release-plan","reports-wanted","skip package*.json","skip tests","tensorboard","testplan-item","triage-needed","verification-found","verification-needed","verification-steps-needed","verified","windows"]'
+  TRIAGERS: '["karrtikr","karthiknadig","paulacamargo25","eleanorjboyd","anthonykim1"]'
+
 permissions:
   issues: write
 
 jobs:
   # From https://github.com/marketplace/actions/github-script#apply-a-label-to-an-issue.
   add-classify-label:
-    name: "Add 'classify'"
+    name: "Add 'triage-needed' and remove unrecognizable labels & assignees"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v6
+      - name: Checkout Actions
+        uses: actions/checkout@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const result = await github.rest.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            })
-            const labels = result.data.map((label) => label.name)
-            const hasNeeds = labels.some((label) => label.startsWith('needs'))
+          repository: 'microsoft/vscode-github-triage-actions'
+          ref: stable
+          path: ./actions
 
-            if (!hasNeeds) {
-              console.log('This issue is not labeled with a "needs __" label, add the "classify" label.')
+      - name: Install Actions
+        run: npm install --production --prefix ./actions
 
-              github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                labels: ['classify']
-              })
-            } else {
-              console.log('This issue already has a "needs __" label, do not add the "classify" label.')
-            }
+      - name: "Add 'triage-needed' and remove unrecognizable labels & assignees"
+        uses: ./actions/python-issue-labels
+        with:
+          triagers: ${{ env.TRIAGERS }}
+          token: ${{secrets.GITHUB_TOKEN}}
+          repo_labels: ${{ env.REPO_LABELS }}

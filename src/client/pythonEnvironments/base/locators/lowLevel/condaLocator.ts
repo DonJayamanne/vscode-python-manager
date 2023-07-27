@@ -2,13 +2,24 @@
 // Licensed under the MIT License.
 import '../../../../common/extensions';
 import { PythonEnvKind } from '../../info';
-import { BasicEnvInfo, IPythonEnvsIterator, Locator } from '../../locator';
-import { Conda } from '../../../common/environmentManagers/conda';
+import { BasicEnvInfo, IPythonEnvsIterator } from '../../locator';
+import { Conda, getCondaEnvironmentsTxt } from '../../../common/environmentManagers/conda';
 import { traceError, traceVerbose } from '../../../../logging';
+import { FSWatchingLocator } from './fsWatchingLocator';
 
-export class CondaEnvironmentLocator extends Locator<BasicEnvInfo> {
+export class CondaEnvironmentLocator extends FSWatchingLocator {
+    public readonly providerId: string = 'conda-envs';
+
+    public constructor() {
+        super(
+            () => getCondaEnvironmentsTxt(),
+            async () => PythonEnvKind.Conda,
+            { isFile: true },
+        );
+    }
+
     // eslint-disable-next-line class-methods-use-this
-    public async *iterEnvs(): IPythonEnvsIterator<BasicEnvInfo> {
+    public async *doIterEnvs(): IPythonEnvsIterator<BasicEnvInfo> {
         const conda = await Conda.getConda();
         if (conda === undefined) {
             traceVerbose(`Couldn't locate the conda binary.`);
@@ -18,15 +29,15 @@ export class CondaEnvironmentLocator extends Locator<BasicEnvInfo> {
 
         const envs = await conda.getEnvList();
         for (const env of envs) {
-            const executablePath = await conda.getInterpreterPathForEnvironment(env);
-            if (executablePath !== undefined) {
-                traceVerbose(`Found conda environment: ${executablePath}`);
-                try {
-                    yield { kind: PythonEnvKind.Conda, executablePath, envPath: env.prefix };
-                } catch (ex) {
-                    traceError(`Failed to process environment: ${executablePath}`, ex);
-                }
+            try {
+                traceVerbose(`Looking into conda env for executable: ${JSON.stringify(env)}`);
+                const executablePath = await conda.getInterpreterPathForEnvironment(env);
+                traceVerbose(`Found conda executable: ${executablePath}`);
+                yield { kind: PythonEnvKind.Conda, executablePath, envPath: env.prefix };
+            } catch (ex) {
+                traceError(`Failed to process conda env: ${JSON.stringify(env)}`, ex);
             }
         }
+        traceVerbose(`Finished searching for conda environments`);
     }
 }

@@ -1,16 +1,19 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+import { Uri } from 'vscode';
 import { IDisposableRegistry } from '../../../common/types';
-import { createDeferred, Deferred } from '../../../common/utils/async';
+import { createDeferred, Deferred, sleep } from '../../../common/utils/async';
 import { createRunningWorkerPool, IWorkerPool, QueuePosition } from '../../../common/utils/workerPool';
 import { getInterpreterInfo, InterpreterInformation } from './interpreter';
 import { buildPythonExecInfo } from '../../exec';
-import { traceError, traceInfo } from '../../../logging';
+import { traceError, traceVerbose, traceWarn } from '../../../logging';
 import { Conda, CONDA_ACTIVATION_TIMEOUT, isCondaEnvironment } from '../../common/environmentManagers/conda';
 import { PythonEnvInfo, PythonEnvKind } from '.';
 import { normCasePath } from '../../common/externalDependencies';
 import { OUTPUT_MARKER_SCRIPT } from '../../../common/process/internal/scripts';
+import { Architecture } from '../../../common/utils/platform';
+import { getEmptyVersion } from './pythonVersion';
 
 export enum EnvironmentInfoServiceQueuePriority {
     Default,
@@ -18,14 +21,32 @@ export enum EnvironmentInfoServiceQueuePriority {
 }
 
 export interface IEnvironmentInfoService {
+    /**
+     * Get the interpreter information for the given environment.
+     * @param env The environment to get the interpreter information for.
+     * @param priority The priority of the request.
+     */
     getEnvironmentInfo(
         env: PythonEnvInfo,
         priority?: EnvironmentInfoServiceQueuePriority,
     ): Promise<InterpreterInformation | undefined>;
+    /**
+     * Reset any stored interpreter information for the given environment.
+     * @param searchLocation Search location of the environment.
+     */
+    resetInfo(searchLocation: Uri): void;
 }
 
-async function buildEnvironmentInfo(env: PythonEnvInfo): Promise<InterpreterInformation | undefined> {
-    const python = [env.executable.filename, OUTPUT_MARKER_SCRIPT];
+async function buildEnvironmentInfo(
+    env: PythonEnvInfo,
+    useIsolated = true,
+): Promise<InterpreterInformation | undefined> {
+    const python = [env.executable.filename];
+    if (useIsolated) {
+        python.push(...['-I', OUTPUT_MARKER_SCRIPT]);
+    } else {
+        python.push(...[OUTPUT_MARKER_SCRIPT]);
+    }
     const interpreterInfo = await getInterpreterInfo(buildPythonExecInfo(python, undefined, env.executable.filename));
     return interpreterInfo;
 }
@@ -37,7 +58,7 @@ async function buildEnvironmentInfoUsingCondaRun(env: PythonEnvInfo): Promise<In
     if (!condaEnv) {
         return undefined;
     }
-    const python = await conda?.getRunPythonArgs(condaEnv, true);
+    const python = await conda?.getRunPythonArgs(condaEnv, true, true);
     if (!python) {
         return undefined;
     }
@@ -99,14 +120,29 @@ class EnvironmentInfoService implements IEnvironmentInfoService {
     public async _getEnvironmentInfo(
         env: PythonEnvInfo,
         priority?: EnvironmentInfoServiceQueuePriority,
+        retryOnce = true,
     ): Promise<InterpreterInformation | undefined> {
+        if (env.kind === PythonEnvKind.Conda && env.executable.filename === 'python') {
+            const emptyInterpreterInfo: InterpreterInformation = {
+                arch: Architecture.Unknown,
+                executable: {
+                    filename: 'python',
+                    ctime: -1,
+                    mtime: -1,
+                    sysPrefix: '',
+                },
+                version: getEmptyVersion(),
+            };
+
+            return emptyInterpreterInfo;
+        }
         if (this.workerPool === undefined) {
             this.workerPool = createRunningWorkerPool<PythonEnvInfo, InterpreterInformation | undefined>(
                 buildEnvironmentInfo,
             );
         }
 
-        let reason: unknown;
+        let reason: Error | undefined;
         let r = await addToQueue(this.workerPool, env, priority).catch((err) => {
             reason = err;
             return undefined;
@@ -117,7 +153,7 @@ class EnvironmentInfoService implements IEnvironmentInfoService {
             // as complete env info may not be available at this time.
             const isCondaEnv = env.kind === PythonEnvKind.Conda || (await isCondaEnvironment(env.executable.filename));
             if (isCondaEnv) {
-                traceInfo(
+                traceVerbose(
                     `Validating ${env.executable.filename} normally failed with error, falling back to using conda run: (${reason})`,
                 );
                 if (this.condaRunWorkerPool === undefined) {
@@ -133,10 +169,41 @@ class EnvironmentInfoService implements IEnvironmentInfoService {
                     return undefined;
                 });
             } else if (reason) {
+                if (
+                    reason.message.includes('Unknown option: -I') ||
+                    reason.message.includes("ModuleNotFoundError: No module named 'encodings'")
+                ) {
+                    traceWarn(reason);
+                    if (reason.message.includes('Unknown option: -I')) {
+                        traceError(
+                            'Support for Python 2.7 has been dropped by the Python extension so certain features may not work, upgrade to using Python 3.',
+                        );
+                    }
+                    return buildEnvironmentInfo(env, false).catch((err) => {
+                        traceError(err);
+                        return undefined;
+                    });
+                }
                 traceError(reason);
             }
         }
+        if (r === undefined && retryOnce) {
+            // Retry once, in case the environment was not fully populated. Also observed in CI:
+            // https://github.com/microsoft/vscode-python/issues/20147 where running environment the first time
+            // failed due to unknown reasons.
+            return sleep(2000).then(() => this._getEnvironmentInfo(env, priority, false));
+        }
         return r;
+    }
+
+    public resetInfo(searchLocation: Uri): void {
+        const searchLocationPath = searchLocation.fsPath;
+        const keys = Array.from(this.cache.keys());
+        keys.forEach((key) => {
+            if (key.startsWith(normCasePath(searchLocationPath))) {
+                this.cache.delete(key);
+            }
+        });
     }
 }
 

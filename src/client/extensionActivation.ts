@@ -56,6 +56,17 @@ export async function activateComponents(
     return Promise.all([legacyActivationResult, ...promises]);
 }
 
+export function activateFeatures(ext: ExtensionState, _components: Components): void {
+    const interpreterQuickPick: IInterpreterQuickPick = ext.legacyIOC.serviceContainer.get<IInterpreterQuickPick>(
+        IInterpreterQuickPick,
+    );
+    const interpreterPathService: IInterpreterPathService = ext.legacyIOC.serviceContainer.get<IInterpreterPathService>(
+        IInterpreterPathService,
+    );
+    const pathUtils = ext.legacyIOC.serviceContainer.get<IPathUtils>(IPathUtils);
+    registerAllCreateEnvironmentFeatures(ext.disposables, interpreterQuickPick, interpreterPathService, pathUtils);
+}
+
 /// //////////////////////////
 // old activation code
 
@@ -93,7 +104,7 @@ async function activateLegacy(ext: ExtensionState): Promise<ActivationResult> {
 
     // "activate" everything else
     const manager = serviceContainer.get<IExtensionActivationManager>(IExtensionActivationManager);
-    context.subscriptions.push(manager);
+    disposables.push(manager);
 
     // Settings are dependent on Experiment service, so we need to initialize it after experiments are activated.
     serviceContainer.get<IConfigurationService>(IConfigurationService).getSettings();

@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import { cloneDeep } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 import * as path from 'path';
 import { Uri } from 'vscode';
 import { getArchitectureDisplayName } from '../../../common/platform/registry';
@@ -16,6 +16,7 @@ import {
     PythonEnvInfo,
     PythonEnvKind,
     PythonEnvSource,
+    PythonEnvType,
     PythonReleaseLevel,
     PythonVersion,
     virtualEnvKinds,
@@ -40,6 +41,7 @@ export function buildEnvInfo(init?: {
     display?: string;
     sysPrefix?: string;
     searchLocation?: Uri;
+    type?: PythonEnvType;
 }): PythonEnvInfo {
     const env: PythonEnvInfo = {
         name: init?.name ?? '',
@@ -75,6 +77,19 @@ export function buildEnvInfo(init?: {
     return env;
 }
 
+export function areEnvsDeepEqual(env1: PythonEnvInfo, env2: PythonEnvInfo): boolean {
+    const env1Clone = cloneDeep(env1);
+    const env2Clone = cloneDeep(env2);
+    // Cannot compare searchLocation as they are Uri objects.
+    delete env1Clone.searchLocation;
+    delete env2Clone.searchLocation;
+    env1Clone.source = env1Clone.source.sort();
+    env2Clone.source = env2Clone.source.sort();
+    const searchLocation1 = env1.searchLocation?.fsPath ?? '';
+    const searchLocation2 = env2.searchLocation?.fsPath ?? '';
+    return isEqual(env1Clone, env2Clone) && arePathsSame(searchLocation1, searchLocation2);
+}
+
 /**
  * Return a deep copy of the given env info.
  *
@@ -103,6 +118,7 @@ function updateEnv(
         location?: string;
         version?: PythonVersion;
         searchLocation?: Uri;
+        type?: PythonEnvType;
     },
 ): void {
     if (updates.kind !== undefined) {
@@ -119,6 +135,9 @@ function updateEnv(
     }
     if (updates.searchLocation !== undefined) {
         env.searchLocation = updates.searchLocation;
+    }
+    if (updates.type !== undefined) {
+        env.type = updates.type;
     }
 }
 
@@ -179,6 +198,7 @@ function getMinimalPartialInfo(env: string | PythonEnvInfo | BasicEnvInfo): Part
             return undefined;
         }
         return {
+            id: '',
             executable: {
                 filename: env,
                 sysPrefix: '',
@@ -189,6 +209,7 @@ function getMinimalPartialInfo(env: string | PythonEnvInfo | BasicEnvInfo): Part
     }
     if ('executablePath' in env) {
         return {
+            id: '',
             executable: {
                 filename: env.executablePath,
                 sysPrefix: '',
@@ -216,7 +237,7 @@ export function getEnvPath(interpreterPath: string, envFolderPath?: string): Env
 }
 
 /**
- * Gets unique identifier for an environment.
+ * Gets general unique identifier for most environments.
  */
 export function getEnvID(interpreterPath: string, envFolderPath?: string): string {
     return normCasePath(getEnvPath(interpreterPath, envFolderPath).path);
@@ -231,7 +252,7 @@ export function getEnvID(interpreterPath: string, envFolderPath?: string): strin
  * Remarks: The current comparison assumes that if the path to the executables are the same
  * then it is the same environment. Additionally, if the paths are not same but executables
  * are in the same directory and the version of python is the same than we can assume it
- * to be same environment. This later case is needed for comparing windows store python,
+ * to be same environment. This later case is needed for comparing microsoft store python,
  * where multiple versions of python executables are all put in the same directory.
  */
 export function areSameEnv(
@@ -247,16 +268,30 @@ export function areSameEnv(
     const leftFilename = leftInfo.executable!.filename;
     const rightFilename = rightInfo.executable!.filename;
 
-    if (getEnvID(leftFilename, leftInfo.location) === getEnvID(rightFilename, rightInfo.location)) {
+    if (leftInfo.id && leftInfo.id === rightInfo.id) {
+        // In case IDs are available, use it.
         return true;
     }
 
-    if (allowPartialMatch && arePathsSame(path.dirname(leftFilename), path.dirname(rightFilename))) {
-        const leftVersion = typeof left === 'string' ? undefined : leftInfo.version;
-        const rightVersion = typeof right === 'string' ? undefined : rightInfo.version;
-        if (leftVersion && rightVersion) {
-            if (areIdenticalVersion(leftVersion, rightVersion) || areSimilarVersions(leftVersion, rightVersion)) {
-                return true;
+    if (getEnvID(leftFilename, leftInfo.location) === getEnvID(rightFilename, rightInfo.location)) {
+        // Otherwise use ID function to get the ID. Note ID returned by function may itself change if executable of
+        // an environment changes, for eg. when conda installs python into the env. So only use it as a fallback if
+        // ID is not available.
+        return true;
+    }
+
+    if (allowPartialMatch) {
+        const isSameDirectory =
+            leftFilename !== 'python' &&
+            rightFilename !== 'python' &&
+            arePathsSame(path.dirname(leftFilename), path.dirname(rightFilename));
+        if (isSameDirectory) {
+            const leftVersion = typeof left === 'string' ? undefined : leftInfo.version;
+            const rightVersion = typeof right === 'string' ? undefined : rightInfo.version;
+            if (leftVersion && rightVersion) {
+                if (areIdenticalVersion(leftVersion, rightVersion) || areSimilarVersions(leftVersion, rightVersion)) {
+                    return true;
+                }
             }
         }
     }

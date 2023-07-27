@@ -12,10 +12,8 @@ export function getKindDisplayName(kind: PythonEnvKind): string {
     for (const [candidate, value] of [
         // Note that Unknown is excluded here.
         [PythonEnvKind.System, 'system'],
-        [PythonEnvKind.MacDefault, 'mac default'],
-        [PythonEnvKind.WindowsStore, 'windows store'],
+        [PythonEnvKind.MicrosoftStore, 'microsoft store'],
         [PythonEnvKind.Pyenv, 'pyenv'],
-        [PythonEnvKind.CondaBase, 'conda'],
         [PythonEnvKind.Poetry, 'poetry'],
         [PythonEnvKind.Custom, 'custom'],
         // For now we treat OtherGlobal like Unknown.
@@ -24,6 +22,7 @@ export function getKindDisplayName(kind: PythonEnvKind): string {
         [PythonEnvKind.VirtualEnvWrapper, 'virtualenv'],
         [PythonEnvKind.Pipenv, 'pipenv'],
         [PythonEnvKind.Conda, 'conda'],
+        [PythonEnvKind.ActiveState, 'ActiveState'],
         // For now we treat OtherVirtual like Unknown.
     ] as [PythonEnvKind, string][]) {
         if (kind === candidate) {
@@ -42,7 +41,7 @@ export function getKindDisplayName(kind: PythonEnvKind): string {
  * Top level we have the following environment types, since they leave a unique signature
  * in the environment or * use a unique path for the environments they create.
  *  1. Conda
- *  2. Windows Store
+ *  2. Microsoft Store
  *  3. PipEnv
  *  4. Pyenv
  *  5. Poetry
@@ -58,17 +57,16 @@ export function getKindDisplayName(kind: PythonEnvKind): string {
 export function getPrioritizedEnvKinds(): PythonEnvKind[] {
     return [
         PythonEnvKind.Pyenv,
-        PythonEnvKind.CondaBase,
         PythonEnvKind.Conda,
-        PythonEnvKind.WindowsStore,
+        PythonEnvKind.MicrosoftStore,
         PythonEnvKind.Pipenv,
         PythonEnvKind.Poetry,
         PythonEnvKind.Venv,
         PythonEnvKind.VirtualEnvWrapper,
         PythonEnvKind.VirtualEnv,
+        PythonEnvKind.ActiveState,
         PythonEnvKind.OtherVirtual,
         PythonEnvKind.OtherGlobal,
-        PythonEnvKind.MacDefault,
         PythonEnvKind.System,
         PythonEnvKind.Custom,
         PythonEnvKind.Unknown,

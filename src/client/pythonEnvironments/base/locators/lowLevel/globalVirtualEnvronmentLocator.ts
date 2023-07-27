@@ -82,7 +82,9 @@ async function getVirtualEnvKind(interpreterPath: string): Promise<PythonEnvKind
 /**
  * Finds and resolves virtual environments created in known global locations.
  */
-export class GlobalVirtualEnvironmentLocator extends FSWatchingLocator<BasicEnvInfo> {
+export class GlobalVirtualEnvironmentLocator extends FSWatchingLocator {
+    public readonly providerId: string = 'global-virtual-env';
+
     constructor(private readonly searchDepth?: number) {
         super(getGlobalVirtualEnvDirs, getVirtualEnvKind, {
             // Note detecting kind of virtual env depends on the file structure around the
@@ -132,6 +134,7 @@ export class GlobalVirtualEnvironmentLocator extends FSWatchingLocator<BasicEnvI
             });
 
             yield* iterable(chain(envGenerators));
+            traceVerbose(`Finished searching for global virtual envs`);
         }
 
         return iterator();

@@ -9,7 +9,8 @@ on:
       - 'release-*'
 
 env:
-  NODE_VERSION: 14.18.2
+  NODE_VERSION: 16.17.1
+  PYTHON_VERSION: '3.10' # YML treats 3.10 the number as 3.1, so quotes around 3.10
   # Force a path with spaces and to test extension works in these scenarios
   # Unicode characters are causing 2.7 failures so skip that for now.
   special-working-directory: './path with spaces'
@@ -76,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Use Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -102,6 +103,7 @@ jobs:
       - name: Run Pyright
         uses: jakebailey/pyright-action@v1
         with:
+          version: 1.1.308
           working-directory: 'pythonFiles'
 
   ### Non-smoke tests
@@ -119,7 +121,7 @@ jobs:
         # entry to lower the number of runners used, macOS runners are expensive,
         # and we assume that Ubuntu is enough to cover the UNIX case.
         os: [ubuntu-latest, windows-latest]
-        python: ['2.7', '3.x']
+        python: ['3.x']
         test-suite: [ts-unit, python-unit, venv, single-workspace, multi-workspace, debugger, functional]
     steps:
       - name: Checkout
@@ -141,9 +143,16 @@ jobs:
         run: npx gulp prePublishNonBundle
 
       - name: Install Python ${{ matrix.python }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
+
+      - name: Download get-pip.py
+        run: |
+          python -m pip install wheel
+          python -m pip install -r build/build-install-requirements.txt
+          python ./pythonFiles/download_get_pip.py
+        shell: bash
 
       - name: Install debugpy
         run: |
@@ -170,16 +179,10 @@ jobs:
       - name: Install debugpy wheels (Python ${{ matrix.python }})
         run: |
           python -m pip install wheel
-          python -m pip --disable-pip-version-check install -r build/debugger-install-requirements.txt
+          python -m pip install -r build/build-install-requirements.txt
           python ./pythonFiles/install_debugpy.py
         shell: bash
-        if: matrix.test-suite == 'debugger' && matrix.python != 2.7
-
-      - name: Install debugpy wheel (Python 2.7)
-        run: |
-          python -m pip --disable-pip-version-check install -t ./pythonFiles/lib/python --no-cache-dir --implementation py --no-deps --upgrade --pre debugpy
-        shell: bash
-        if: matrix.test-suite == 'debugger' && matrix.python == 2.7
+        if: matrix.test-suite == 'debugger'
 
       - name: Install functional test requirements
         run: python -m pip install --upgrade -r ./build/functional-test-requirements.txt
@@ -190,7 +193,7 @@ jobs:
           TEST_FILES_SUFFIX: testvirtualenvs
           PYTHON_VIRTUAL_ENVS_LOCATION: './src/tmp/envPaths.json'
         shell: pwsh
-        if: matrix.test-suite == 'venv' && matrix.python != 2.7
+        if: matrix.test-suite == 'venv'
         run: |
           python -m pip install pipenv
           python -m pipenv run python ./build/ci/addEnvPath.py ${{ env.PYTHON_VIRTUAL_ENVS_LOCATION }} pipenvPath

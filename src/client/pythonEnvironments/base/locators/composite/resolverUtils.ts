@@ -4,21 +4,23 @@
 import * as path from 'path';
 import { Uri } from 'vscode';
 import { uniq } from 'lodash';
-import { PythonEnvInfo, PythonEnvKind, PythonEnvSource, UNKNOWN_PYTHON_VERSION, virtualEnvKinds } from '../../info';
 import {
-    buildEnvInfo,
-    comparePythonVersionSpecificity,
-    setEnvDisplayString,
-    areSameEnv,
-    getEnvID,
-} from '../../info/env';
+    PythonEnvInfo,
+    PythonEnvKind,
+    PythonEnvSource,
+    PythonEnvType,
+    UNKNOWN_PYTHON_VERSION,
+    virtualEnvKinds,
+} from '../../info';
+import { buildEnvInfo, comparePythonVersionSpecificity, setEnvDisplayString, getEnvID } from '../../info/env';
+import { getEnvironmentDirFromPath, getPythonVersionFromPath } from '../../../common/commonUtils';
+import { arePathsSame, getFileInfo, isParentPath } from '../../../common/externalDependencies';
 import {
-    getEnvironmentDirFromPath,
-    getInterpreterPathFromDir,
-    getPythonVersionFromPath,
-} from '../../../common/commonUtils';
-import { arePathsSame, getWorkspaceFolders, isParentPath } from '../../../common/externalDependencies';
-import { AnacondaCompanyName, Conda, isCondaEnvironment } from '../../../common/environmentManagers/conda';
+    AnacondaCompanyName,
+    Conda,
+    getCondaInterpreterPath,
+    isCondaEnvironment,
+} from '../../../common/environmentManagers/conda';
 import { getPyenvVersionsDir, parsePyenvVersion } from '../../../common/environmentManagers/pyenv';
 import { Architecture, getOSType, OSType } from '../../../../common/utils/platform';
 import { getPythonVersionFromPath as parsePythonVersionFromPath, parseVersion } from '../../info/pythonVersion';
@@ -26,9 +28,12 @@ import { getRegistryInterpreters, getRegistryInterpretersSync } from '../../../c
 import { BasicEnvInfo } from '../../locator';
 import { parseVersionFromExecutable } from '../../info/executable';
 import { traceError, traceWarn } from '../../../../logging';
+import { isVirtualEnvironment } from '../../../common/environmentManagers/simplevirtualenvs';
+import { getWorkspaceFolderPaths } from '../../../../common/vscodeApis/workspaceApis';
+import { ActiveState } from '../../../common/environmentManagers/activestate';
 
-function getResolvers(): Map<PythonEnvKind, (env: BasicEnvInfo, useCache?: boolean) => Promise<PythonEnvInfo>> {
-    const resolvers = new Map<PythonEnvKind, (_: BasicEnvInfo, useCache?: boolean) => Promise<PythonEnvInfo>>();
+function getResolvers(): Map<PythonEnvKind, (env: BasicEnvInfo) => Promise<PythonEnvInfo>> {
+    const resolvers = new Map<PythonEnvKind, (_: BasicEnvInfo) => Promise<PythonEnvInfo>>();
     Object.values(PythonEnvKind).forEach((k) => {
         resolvers.set(k, resolveGloballyInstalledEnv);
     });
@@ -36,8 +41,9 @@ function getResolvers(): Map<PythonEnvKind, (env: BasicEnvInfo, useCache?: boole
         resolvers.set(k, resolveSimpleEnv);
     });
     resolvers.set(PythonEnvKind.Conda, resolveCondaEnv);
-    resolvers.set(PythonEnvKind.WindowsStore, resolveWindowsStoreEnv);
+    resolvers.set(PythonEnvKind.MicrosoftStore, resolveMicrosoftStoreEnv);
     resolvers.set(PythonEnvKind.Pyenv, resolvePyenvEnv);
+    resolvers.set(PythonEnvKind.ActiveState, resolveActiveStateEnv);
     return resolvers;
 }
 
@@ -46,11 +52,11 @@ function getResolvers(): Map<PythonEnvKind, (env: BasicEnvInfo, useCache?: boole
  * executable and returns it. Notice `undefined` is never returned, so environment
  * returned could still be invalid.
  */
-export async function resolveBasicEnv(env: BasicEnvInfo, useCache = false): Promise<PythonEnvInfo> {
+export async function resolveBasicEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
     const { kind, source } = env;
     const resolvers = getResolvers();
     const resolverForKind = resolvers.get(kind)!;
-    const resolvedEnv = await resolverForKind(env, useCache);
+    const resolvedEnv = await resolverForKind(env);
     resolvedEnv.searchLocation = getSearchLocation(resolvedEnv);
     resolvedEnv.source = uniq(resolvedEnv.source.concat(source ?? []));
     if (getOSType() === OSType.Windows && resolvedEnv.source?.includes(PythonEnvSource.WindowsRegistry)) {
@@ -58,24 +64,41 @@ export async function resolveBasicEnv(env: BasicEnvInfo, useCache = false): Prom
         await updateEnvUsingRegistry(resolvedEnv);
     }
     setEnvDisplayString(resolvedEnv);
-    resolvedEnv.id = getEnvID(resolvedEnv.executable.filename, resolvedEnv.location);
+    const { ctime, mtime } = await getFileInfo(resolvedEnv.executable.filename);
+    resolvedEnv.executable.ctime = ctime;
+    resolvedEnv.executable.mtime = mtime;
+    const type = await getEnvType(resolvedEnv);
+    if (type) {
+        resolvedEnv.type = type;
+    }
     return resolvedEnv;
 }
 
+async function getEnvType(env: PythonEnvInfo) {
+    if (env.type) {
+        return env.type;
+    }
+    if (await isVirtualEnvironment(env.executable.filename)) {
+        return PythonEnvType.Virtual;
+    }
+    if (await isCondaEnvironment(env.executable.filename)) {
+        return PythonEnvType.Conda;
+    }
+    return undefined;
+}
+
 function getSearchLocation(env: PythonEnvInfo): Uri | undefined {
-    const folders = getWorkspaceFolders();
-    const isRootedEnv = folders.some((f) => isParentPath(env.executable.filename, f));
+    const folders = getWorkspaceFolderPaths();
+    const isRootedEnv = folders.some((f) => isParentPath(env.executable.filename, f) || isParentPath(env.location, f));
     if (isRootedEnv) {
         // For environments inside roots, we need to set search location so they can be queried accordingly.
-        // Search location particularly for virtual environments is intended as the directory in which the
-        // environment was found in.
-        // For eg.the default search location for an env containing 'bin' or 'Scripts' directory is:
+        // In certain usecases environment directory can itself be a root, for eg. `python -m venv .`.
+        // So choose folder to environment path to search for this env.
         //
-        // searchLocation <--- Default search location directory
-        // |__ env
+        // |__ env <--- Default search location directory
         //    |__ bin or Scripts
         //        |__ python  <--- executable
-        return Uri.file(path.dirname(env.location));
+        return Uri.file(env.location);
     }
     return undefined;
 }
@@ -130,6 +153,7 @@ async function resolveSimpleEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
         kind,
         version: await getPythonVersionFromPath(executablePath),
         executable: executablePath,
+        type: PythonEnvType.Virtual,
     });
     const location = getEnvironmentDirFromPath(executablePath);
     envInfo.location = location;
@@ -137,44 +161,48 @@ async function resolveSimpleEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
     return envInfo;
 }
 
-async function resolveCondaEnv(env: BasicEnvInfo, useCache?: boolean): Promise<PythonEnvInfo> {
+async function resolveCondaEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
     const { executablePath } = env;
     const conda = await Conda.getConda();
     if (conda === undefined) {
-        traceWarn(`${executablePath} identified as Conda environment even though Conda is not installed`);
+        traceWarn(`${executablePath} identified as Conda environment even though Conda is not found`);
+        // Environment could still be valid, resolve as a simple env.
+        env.kind = PythonEnvKind.Unknown;
+        const envInfo = await resolveSimpleEnv(env);
+        envInfo.type = PythonEnvType.Conda;
+        // Assume it's a prefixed env by default because prefixed CLIs work even for named environments.
+        envInfo.name = '';
+        return envInfo;
     }
-    const envs = (await conda?.getEnvList(useCache)) ?? [];
-    for (const { name, prefix } of envs) {
-        let executable = await getInterpreterPathFromDir(prefix);
-        const currEnv: BasicEnvInfo = { executablePath: executable ?? '', kind: PythonEnvKind.Conda, envPath: prefix };
-        if (areSameEnv(env, currEnv)) {
-            if (env.executablePath.length > 0) {
-                executable = env.executablePath;
-            } else {
-                executable = await conda?.getInterpreterPathForEnvironment({ name, prefix });
-            }
-            const info = buildEnvInfo({
-                executable,
-                kind: PythonEnvKind.Conda,
-                org: AnacondaCompanyName,
-                location: prefix,
-                source: [],
-                version: executable ? await getPythonVersionFromPath(executable) : undefined,
-            });
-            if (name) {
-                info.name = name;
-            }
-            return info;
-        }
+
+    const envPath = env.envPath ?? getEnvironmentDirFromPath(env.executablePath);
+    let executable: string;
+    if (env.executablePath.length > 0) {
+        executable = env.executablePath;
+    } else {
+        executable = await conda.getInterpreterPathForEnvironment({ prefix: envPath });
     }
-    traceError(
-        `${env.envPath ?? env.executablePath} identified as a Conda environment but is not returned via '${
-            conda?.command
-        } info' command`,
-    );
-    // Environment could still be valid, resolve as a simple env.
-    env.kind = PythonEnvKind.Unknown;
-    return resolveSimpleEnv(env);
+    const info = buildEnvInfo({
+        executable,
+        kind: PythonEnvKind.Conda,
+        org: AnacondaCompanyName,
+        location: envPath,
+        source: [],
+        version: executable ? await getPythonVersionFromPath(executable) : undefined,
+        type: PythonEnvType.Conda,
+    });
+    const name = await conda?.getName(envPath);
+    if (name) {
+        info.name = name;
+    }
+    if (env.envPath && path.basename(executable) === executable) {
+        // For environments without python, set ID using the predicted executable path after python is installed.
+        // Another alternative could've been to set ID of all conda environments to the environment path, as that
+        // remains constant even after python installation.
+        const predictedExecutable = getCondaInterpreterPath(env.envPath);
+        info.id = getEnvID(predictedExecutable, env.envPath);
+    }
+    return info;
 }
 
 async function resolvePyenvEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
@@ -221,6 +249,25 @@ async function resolvePyenvEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
     return envInfo;
 }
 
+async function resolveActiveStateEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
+    const info = buildEnvInfo({
+        kind: env.kind,
+        executable: env.executablePath,
+    });
+    const projects = await ActiveState.getState().then((v) => v?.getProjects());
+    if (projects) {
+        for (const project of projects) {
+            for (const dir of project.executables) {
+                if (arePathsSame(dir, path.dirname(env.executablePath))) {
+                    info.name = `${project.organization}/${project.name}`;
+                    return info;
+                }
+            }
+        }
+    }
+    return info;
+}
+
 async function isBaseCondaPyenvEnvironment(executablePath: string) {
     if (!(await isCondaEnvironment(executablePath))) {
         return false;
@@ -230,10 +277,10 @@ async function isBaseCondaPyenvEnvironment(executablePath: string) {
     return arePathsSame(path.dirname(location), pyenvVersionDir);
 }
 
-async function resolveWindowsStoreEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
+async function resolveMicrosoftStoreEnv(env: BasicEnvInfo): Promise<PythonEnvInfo> {
     const { executablePath } = env;
     return buildEnvInfo({
-        kind: PythonEnvKind.WindowsStore,
+        kind: PythonEnvKind.MicrosoftStore,
         executable: executablePath,
         version: parsePythonVersionFromPath(executablePath),
         org: 'Microsoft',

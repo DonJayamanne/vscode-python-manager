@@ -4,7 +4,16 @@
 import { chain } from '../../common/utils/async';
 import { Disposables } from '../../common/utils/resourceLifecycle';
 import { PythonEnvInfo } from './info';
-import { ILocator, IPythonEnvsIterator, PythonEnvUpdatedEvent, PythonLocatorQuery } from './locator';
+import {
+    ICompositeLocator,
+    ILocator,
+    IPythonEnvsIterator,
+    isProgressEvent,
+    ProgressNotificationEvent,
+    ProgressReportStage,
+    PythonEnvUpdatedEvent,
+    PythonLocatorQuery,
+} from './locator';
 import { PythonEnvsWatchers } from './watchers';
 
 /**
@@ -19,17 +28,21 @@ export function combineIterators<I>(iterators: IPythonEnvsIterator<I>[]): IPytho
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    result.onUpdated = (handleEvent: (e: PythonEnvUpdatedEvent<I> | null) => any) => {
+    result.onUpdated = (handleEvent: (e: PythonEnvUpdatedEvent<I> | ProgressNotificationEvent) => any) => {
         const disposables = new Disposables();
         let numActive = events.length;
         events.forEach((event) => {
-            const disposable = event!((e: PythonEnvUpdatedEvent<I> | null) => {
+            const disposable = event!((e: PythonEnvUpdatedEvent<I> | ProgressNotificationEvent) => {
                 // NOSONAR
-                if (e === null) {
-                    numActive -= 1;
-                    if (numActive === 0) {
-                        // All the sub-events are done so we're done.
-                        handleEvent(null);
+                if (isProgressEvent(e)) {
+                    if (e.stage === ProgressReportStage.discoveryFinished) {
+                        numActive -= 1;
+                        if (numActive === 0) {
+                            // All the sub-events are done so we're done.
+                            handleEvent({ stage: ProgressReportStage.discoveryFinished });
+                        }
+                    } else {
+                        handleEvent({ stage: e.stage });
                     }
                 } else {
                     handleEvent(e);
@@ -47,12 +60,15 @@ export function combineIterators<I>(iterators: IPythonEnvsIterator<I>[]): IPytho
  *
  * Events and iterator results are combined.
  */
-export class Locators<I = PythonEnvInfo> extends PythonEnvsWatchers implements ILocator<I> {
+export class Locators<I = PythonEnvInfo> extends PythonEnvsWatchers implements ICompositeLocator<I> {
+    public readonly providerId: string;
+
     constructor(
         // The locators will be watched as well as iterated.
         private readonly locators: ReadonlyArray<ILocator<I>>,
     ) {
         super(locators);
+        this.providerId = locators.map((loc) => loc.providerId).join('+');
     }
 
     public iterEnvs(query?: PythonLocatorQuery): IPythonEnvsIterator<I> {

@@ -4,11 +4,13 @@
 import * as fsapi from 'fs-extra';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { IWorkspaceService } from '../../common/application/types';
 import { ExecutionResult, IProcessServiceFactory, ShellOptions, SpawnOptions } from '../../common/process/types';
 import { IDisposable, IConfigurationService } from '../../common/types';
 import { chain, iterable } from '../../common/utils/async';
 import { getOSType, OSType } from '../../common/utils/platform';
 import { IServiceContainer } from '../../ioc/types';
+import { traceError, traceVerbose } from '../../logging';
 
 let internalServiceContainer: IServiceContainer;
 export function initializeExternalDependencies(serviceContainer: IServiceContainer): void {
@@ -25,6 +27,13 @@ export async function shellExecute(command: string, options: ShellOptions = {}):
 export async function exec(file: string, args: string[], options: SpawnOptions = {}): Promise<ExecutionResult<string>> {
     const service = await internalServiceContainer.get<IProcessServiceFactory>(IProcessServiceFactory).create();
     return service.exec(file, args, options);
+}
+
+// Workspace
+
+export function isVirtualWorkspace(): boolean {
+    const service = internalServiceContainer.get<IWorkspaceService>(IWorkspaceService);
+    return service.isVirtualWorkspace;
 }
 
 // filesystem
@@ -84,22 +93,38 @@ export function arePathsSame(path1: string, path2: string): boolean {
     return normCasePath(path1) === normCasePath(path2);
 }
 
-export function getWorkspaceFolders(): string[] {
-    return vscode.workspace.workspaceFolders?.map((w) => w.uri.fsPath) ?? [];
-}
-
-export async function resolveSymbolicLink(absPath: string, stats?: fsapi.Stats): Promise<string> {
+export async function resolveSymbolicLink(absPath: string, stats?: fsapi.Stats, count?: number): Promise<string> {
     stats = stats ?? (await fsapi.lstat(absPath));
     if (stats.isSymbolicLink()) {
+        if (count && count > 5) {
+            traceError(`Detected a potential symbolic link loop at ${absPath}, terminating resolution.`);
+            return absPath;
+        }
         const link = await fsapi.readlink(absPath);
         // Result from readlink is not guaranteed to be an absolute path. For eg. on Mac it resolves
         // /usr/local/bin/python3.9 -> ../../../Library/Frameworks/Python.framework/Versions/3.9/bin/python3.9
         //
         // The resultant path is reported relative to the symlink directory we resolve. Convert that to absolute path.
         const absLinkPath = path.isAbsolute(link) ? link : path.resolve(path.dirname(absPath), link);
-        return resolveSymbolicLink(absLinkPath);
+        count = count ? count + 1 : 1;
+        return resolveSymbolicLink(absLinkPath, undefined, count);
     }
     return absPath;
+}
+
+export async function getFileInfo(filePath: string): Promise<{ ctime: number; mtime: number }> {
+    try {
+        const data = await fsapi.lstat(filePath);
+        return {
+            ctime: data.ctime.valueOf(),
+            mtime: data.mtime.valueOf(),
+        };
+    } catch (ex) {
+        // This can fail on some cases, such as, `reparse points` on windows. So, return the
+        // time as -1. Which we treat as not set in the extension.
+        traceVerbose(`Failed to get file info for ${filePath}`, ex);
+        return { ctime: -1, mtime: -1 };
+    }
 }
 
 export async function isFile(filePath: string): Promise<boolean> {

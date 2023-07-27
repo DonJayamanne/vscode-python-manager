@@ -33,8 +33,9 @@
         "theme": "dark"
     },
     "engines": {
-        "vscode": "^1.65.0"
+        "vscode": "^1.79.0-20230526"
     },
+    "enableTelemetry": false,
     "keywords": [
         "python",
         "conda",
@@ -179,8 +180,8 @@
         "testSmoke": "cross-env INSTALL_JUPYTER_EXTENSION=true \"node ./out/test/smokeTest.js\"",
         "testInsiders": "cross-env VSC_PYTHON_CI_TEST_VSC_CHANNEL=insiders INSTALL_PYLANCE_EXTENSION=true TEST_FILES_SUFFIX=insiders.test CODE_TESTS_WORKSPACE=src/testMultiRootWkspc/smokeTests \"node ./out/test/standardTest.js\"",
         "lint-staged": "node gulpfile.js",
-        "lint": "eslint --ext .ts,.js src build",
-        "lint-fix": "eslint --fix --ext .ts,.js src build gulpfile.js",
+        "lint": "eslint --ext .ts,.js src build pythonExtensionApi",
+        "lint-fix": "eslint --fix --ext .ts,.js src build pythonExtensionApi gulpfile.js",
         "format-check": "prettier --check 'src/**/*.ts' 'build/**/*.js' '.github/**/*.yml' gulpfile.js",
         "format-fix": "prettier --write 'src/**/*.ts' 'build/**/*.js' '.github/**/*.yml' gulpfile.js",
         "clean": "gulp clean",
@@ -221,10 +222,11 @@
         "vscode-extension-telemetry": "0.4.5",
         "vscode-jsonrpc": "8.0.0-next.7",
         "winreg": "^1.2.4",
-        "xml2js": "^0.4.19"
+        "xml2js": "^0.5.0"
     },
     "devDependencies": {
         "@istanbuljs/nyc-config-typescript": "^1.0.2",
+        "@types/bent": "^7.3.0",
         "@types/chai": "^4.1.2",
         "@types/chai-arrays": "^2.0.0",
         "@types/chai-as-promised": "^7.1.0",
@@ -246,12 +248,15 @@
         "@types/unbzip2-stream": "^1.4.0",
         "@types/untildify": "^3.0.0",
         "@types/uuid": "^8.3.4",
-        "@types/vscode": "~1.65.0",
+        "@types/vscode": "^1.75.0",
+        "@types/which": "^2.0.1",
         "@types/winreg": "^1.2.30",
         "@types/xml2js": "^0.4.2",
         "@typescript-eslint/eslint-plugin": "^3.7.0",
         "@typescript-eslint/parser": "^3.7.0",
         "@vscode/test-electron": "^2.1.3",
+        "@vscode/vsce": "^2.18.0",
+        "bent": "^7.3.12",
         "chai": "^4.1.2",
         "chai-arrays": "^2.0.0",
         "chai-as-promised": "^7.1.1",
@@ -260,11 +265,11 @@
         "deemon": "^1.6.0",
         "del": "^6.0.0",
         "download": "^8.0.0",
-        "es5-ext": "^0.10.53",
+        "es5-ext": "0.10.53",
         "eslint": "^7.2.0",
         "eslint-config-airbnb": "^18.2.0",
         "eslint-config-prettier": "^8.3.0",
-        "eslint-plugin-import": "^2.22.0",
+        "eslint-plugin-import": "^2.25.4",
         "eslint-plugin-jsx-a11y": "^6.3.1",
         "eslint-plugin-react": "^7.20.3",
         "eslint-plugin-react-hooks": "^4.0.0",
@@ -279,6 +284,7 @@
         "nock": "^10.0.6",
         "node-has-native-dependencies": "^1.0.2",
         "node-loader": "^1.0.2",
+        "node-polyfill-webpack-plugin": "^1.1.4",
         "nyc": "^15.0.0",
         "prettier": "^2.0.2",
         "rewiremock": "^3.13.0",
@@ -293,10 +299,8 @@
         "typemoq": "^2.1.0",
         "typescript": "4.5.5",
         "uuid": "^8.3.2",
-        "vsce": "^2.6.6",
         "vscode-debugadapter-testsupport": "^1.27.0",
-        "vscode-telemetry-extractor": "^1.9.5",
-        "webpack": "^5.70.0",
+        "webpack": "^5.76.0",
         "webpack-bundle-analyzer": "^4.5.0",
         "webpack-cli": "^4.9.2",
         "webpack-fix-default-import-plugin": "^1.0.3",
@@ -304,10 +308,5 @@
         "webpack-node-externals": "^3.0.0",
         "webpack-require-from": "^1.8.6",
         "yargs": "^15.3.1"
-    },
-    "__metadata": {
-        "id": "f1f59ae4-9318-4f3c-a9b5-81b2eaa5f8a5",
-        "publisherDisplayName": "Microsoft",
-        "publisherId": "998b010b-e2af-44a5-a6cd-0b5fd3b9b6f8"
     }
 }

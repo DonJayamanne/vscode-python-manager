@@ -4,9 +4,9 @@
 'use strict';
 
 import { Socket } from 'net';
-import { Request as RequestResult } from 'request';
 import {
     CancellationToken,
+    ConfigurationChangeEvent,
     ConfigurationTarget,
     Disposable,
     DocumentSymbolProvider,
@@ -14,20 +14,28 @@ import {
     Extension,
     ExtensionContext,
     Memento,
-    OutputChannel,
+    LogOutputChannel,
     Uri,
     WorkspaceEdit,
+    OutputChannel,
 } from 'vscode';
 import type { InstallOptions, InterpreterUri, ModuleInstallFlags } from './installer/types';
 import { EnvironmentVariables } from './variables/types';
 
-export const IOutputChannel = Symbol('IOutputChannel');
-export interface IOutputChannel extends OutputChannel {}
+export interface IDisposable {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dispose(): void | undefined | Promise<void>;
+}
+
+export const ILogOutputChannel = Symbol('ILogOutputChannel');
+export interface ILogOutputChannel extends LogOutputChannel {}
+export const ITestOutputChannel = Symbol('ITestOutputChannel');
+export interface ITestOutputChannel extends OutputChannel {}
 export const IDocumentSymbolProvider = Symbol('IDocumentSymbolProvider');
 export interface IDocumentSymbolProvider extends DocumentSymbolProvider {}
 export const IsWindows = Symbol('IS_WINDOWS');
 export const IDisposableRegistry = Symbol('IDisposableRegistry');
-export type IDisposableRegistry = Disposable[];
+export type IDisposableRegistry = IDisposable[];
 export const IMemento = Symbol('IGlobalMemento');
 export const GLOBAL_MEMENTO = Symbol('IGlobalMemento');
 export const WORKSPACE_MEMENTO = Symbol('IWorkspaceMemento');
@@ -167,9 +175,11 @@ export interface ICurrentProcess {
 }
 
 export interface IPythonSettings {
+    readonly interpreter: IInterpreterSettings;
     readonly pythonPath: string;
     readonly venvPath: string;
     readonly venvFolders: string[];
+    readonly activeStateToolPath: string;
     readonly condaPath: string;
     readonly pipenvPath: string;
     readonly poetryPath: string;
@@ -183,6 +193,7 @@ export interface IPythonSettings {
 
 export interface ITerminalSettings {
     readonly executeInFileDir: boolean;
+    readonly focusAfterLaunch: boolean;
     readonly launchArgs: string[];
     readonly activateEnvironment: boolean;
     readonly activateEnvInCurrentTerminal: boolean;
@@ -190,6 +201,7 @@ export interface ITerminalSettings {
 
 export const IConfigurationService = Symbol('IConfigurationService');
 export interface IConfigurationService {
+    readonly onDidChange: Event<ConfigurationChangeEvent | undefined>;
     getSettings(resource?: Uri): IPythonSettings;
     isTestExecution(): boolean;
     updateSetting(setting: string, value?: unknown, resource?: Uri, configTarget?: ConfigurationTarget): Promise<void>;
@@ -237,41 +249,6 @@ export type DownloadOptions = {
     extension: 'tmp' | string;
 };
 
-export const IFileDownloader = Symbol('IFileDownloader');
-/**
- * File downloader, that'll display progress in the status bar.
- *
- * @export
- * @interface IFileDownloader
- */
-export interface IFileDownloader {
-    /**
-     * Download file and display progress in statusbar.
-     * Optionnally display progress in the provided output channel.
-     *
-     * @param {string} uri
-     * @param {DownloadOptions} options
-     * @returns {Promise<string>}
-     * @memberof IFileDownloader
-     */
-    downloadFile(uri: string, options: DownloadOptions): Promise<string>;
-}
-
-export const IHttpClient = Symbol('IHttpClient');
-export interface IHttpClient {
-    downloadFile(uri: string): Promise<RequestResult>;
-    /**
-     * Downloads file from uri as string and parses them into JSON objects
-     * @param uri The uri to download the JSON from
-     * @param strict Set `false` to allow trailing comma and comments in the JSON, defaults to `true`
-     */
-    getJSON<T>(uri: string, strict?: boolean): Promise<T>;
-    /**
-     * Returns the url is valid (i.e. return status code of 200).
-     */
-    exists(uri: string): Promise<boolean>;
-}
-
 export const IExtensionContext = Symbol('ExtensionContext');
 export interface IExtensionContext extends ExtensionContext {}
 
@@ -305,6 +282,11 @@ export interface IExtensions {
      * @return An extension or `undefined`.
      */
     getExtension<T>(extensionId: string): Extension<T> | undefined;
+
+    /**
+     * Determines which extension called into our extension code based on call stacks.
+     */
+    determineExtensionFromCallStack(): Promise<{ extensionId: string; displayName: string }>;
 }
 
 export const IBrowserService = Symbol('IBrowserService');
@@ -315,13 +297,6 @@ export interface IBrowserService {
 export const IEditorUtils = Symbol('IEditorUtils');
 export interface IEditorUtils {
     getWorkspaceEditsFromPatch(originalContents: string, patch: string, uri: Uri): WorkspaceEdit;
-}
-
-export interface IDisposable {
-    dispose(): void | undefined;
-}
-export interface IAsyncDisposable {
-    dispose(): Promise<void>;
 }
 
 /**
@@ -352,4 +327,5 @@ export interface IInterpreterPathService {
     get(resource: Resource): string;
     inspect(resource: Resource): InspectInterpreterSettingType;
     update(resource: Resource, configTarget: ConfigurationTarget, value: string | undefined): Promise<void>;
+    copyOldInterpreterStorageValuesToNew(resource: Resource): Promise<void>;
 }

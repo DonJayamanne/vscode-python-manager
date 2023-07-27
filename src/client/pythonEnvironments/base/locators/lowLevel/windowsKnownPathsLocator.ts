@@ -4,17 +4,19 @@
 /* eslint-disable max-classes-per-file */
 
 import { Event } from 'vscode';
+import { IDisposable } from '../../../../common/types';
 import { getSearchPathEntries } from '../../../../common/utils/exec';
-import { Disposables, IDisposable } from '../../../../common/utils/resourceLifecycle';
+import { Disposables } from '../../../../common/utils/resourceLifecycle';
 import { iterPythonExecutablesInDir, looksLikeBasicGlobalPython } from '../../../common/commonUtils';
 import { isPyenvShimDir } from '../../../common/environmentManagers/pyenv';
-import { isWindowsStoreDir } from '../../../common/environmentManagers/windowsStoreEnv';
+import { isMicrosoftStoreDir } from '../../../common/environmentManagers/microsoftStoreEnv';
 import { PythonEnvKind, PythonEnvSource } from '../../info';
 import { BasicEnvInfo, ILocator, IPythonEnvsIterator, PythonLocatorQuery } from '../../locator';
 import { Locators } from '../../locators';
 import { getEnvs } from '../../locatorUtils';
 import { PythonEnvsChangedEvent } from '../../watcher';
 import { DirFilesLocator } from './filesLocator';
+import { traceVerbose } from '../../../../logging';
 
 /**
  * A locator for Windows locators found under the $PATH env var.
@@ -23,6 +25,8 @@ import { DirFilesLocator } from './filesLocator';
  * it for changes.
  */
 export class WindowsPathEnvVarLocator implements ILocator<BasicEnvInfo>, IDisposable {
+    public readonly providerId: string = 'windows-path-env-var-locator';
+
     public readonly onChanged: Event<PythonEnvsChangedEvent>;
 
     private readonly locators: Locators<BasicEnvInfo>;
@@ -34,14 +38,14 @@ export class WindowsPathEnvVarLocator implements ILocator<BasicEnvInfo>, IDispos
             .filter(
                 (dirname) =>
                     // Filter out following directories:
-                    // 1. Windows Store app directories: We have a store app locator that handles this. The
+                    // 1. Microsoft Store app directories: We have a store app locator that handles this. The
                     //    python.exe available in these directories might not be python. It can be a store
-                    //    install shortcut that takes you to windows store.
+                    //    install shortcut that takes you to microsoft store.
                     //
                     // 2. Filter out pyenv shims: They are not actual python binaries, they are used to launch
                     //    the binaries specified in .python-version file in the cwd. We should not be reporting
                     //    those binaries as environments.
-                    !isWindowsStoreDir(dirname) && !isPyenvShimDir(dirname),
+                    !isMicrosoftStoreDir(dirname) && !isPyenvShimDir(dirname),
             )
             // Build a locator for each directory.
             .map((dirname) => getDirFilesLocator(dirname, PythonEnvKind.System, [PythonEnvSource.PathEnvVar]));
@@ -89,9 +93,14 @@ function getDirFilesLocator(
     // rather than in each low-level locator.  In the meantime we
     // take a naive approach.
     async function* iterEnvs(query: PythonLocatorQuery): IPythonEnvsIterator<BasicEnvInfo> {
-        yield* await getEnvs(locator.iterEnvs(query));
+        traceVerbose('Searching for windows path interpreters');
+        yield* await getEnvs(locator.iterEnvs(query)).then((res) => {
+            traceVerbose('Finished searching for windows path interpreters');
+            return res;
+        });
     }
     return {
+        providerId: locator.providerId,
         iterEnvs,
         dispose,
         onChanged: locator.onChanged,
