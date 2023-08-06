@@ -18,7 +18,6 @@ import {
     WORKSPACE_MEMENTO,
 } from './types';
 import { cache } from './utils/decorators';
-import { noop } from './utils/misc';
 
 export class PersistentState<T> implements IPersistentState<T> {
     constructor(
@@ -155,7 +154,6 @@ export class PersistentStateFactory implements IPersistentStateFactory, IExtensi
         );
         await this._globalKeysStorage.updateValue([]);
         await this._workspaceKeysStorage.updateValue([]);
-        this.cmdManager?.executeCommand('workbench.action.reloadWindow').then(noop);
     }
 }
 

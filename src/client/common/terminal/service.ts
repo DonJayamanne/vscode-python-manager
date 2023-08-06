@@ -4,12 +4,9 @@
 import { inject, injectable } from 'inversify';
 import { CancellationToken, Disposable, Event, EventEmitter, Terminal } from 'vscode';
 import '../../common/extensions';
-import { IInterpreterService } from '../../interpreter/contracts';
 import { IServiceContainer } from '../../ioc/types';
-import { captureTelemetry } from '../../telemetry';
-import { EventName } from '../../telemetry/constants';
 import { ITerminalManager } from '../application/types';
-import { IConfigurationService, IDisposableRegistry } from '../types';
+import { IDisposableRegistry } from '../types';
 import {
     ITerminalActivator,
     ITerminalHelper,
@@ -90,31 +87,11 @@ export class TerminalService implements ITerminalService, Disposable {
         if (!this.options?.hideFromUser) {
             this.terminal!.show(preserveFocus);
         }
-
-        this.sendTelemetry().ignoreErrors();
     }
     private terminalCloseHandler(terminal: Terminal) {
         if (terminal === this.terminal) {
             this.terminalClosed.fire();
             this.terminal = undefined;
         }
-    }
-
-    private async sendTelemetry() {
-        const pythonPath = this.serviceContainer
-            .get<IConfigurationService>(IConfigurationService)
-            .getSettings(this.options?.resource).pythonPath;
-        const interpreterInfo =
-            this.options?.interpreter ||
-            (await this.serviceContainer
-                .get<IInterpreterService>(IInterpreterService)
-                .getInterpreterDetails(pythonPath));
-        const pythonVersion = interpreterInfo && interpreterInfo.version ? interpreterInfo.version.raw : undefined;
-        const interpreterType = interpreterInfo ? interpreterInfo.envType : undefined;
-        captureTelemetry(EventName.TERMINAL_CREATE, {
-            terminal: this.terminalShellType,
-            pythonVersion,
-            interpreterType,
-        });
     }
 }

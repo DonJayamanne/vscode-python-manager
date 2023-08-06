@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as fsextra from 'fs-extra';
 import { SemVer } from 'semver';
 import * as vscode from 'vscode';
-import { Architecture, OSType } from '../utils/platform';
+import { OSType } from '../utils/platform';
 
 // We could use FileType from utils/filesystem.ts, but it's simpler this way.
 export import FileType = vscode.FileType;
@@ -19,12 +19,6 @@ export type WriteStream = fs.WriteStream;
 export enum RegistryHive {
     HKCU,
     HKLM,
-}
-
-export const IRegistry = Symbol('IRegistry');
-export interface IRegistry {
-    getKeys(key: string, hive: RegistryHive, arch?: Architecture): Promise<string[]>;
-    getValue(key: string, hive: RegistryHive, arch?: Architecture, name?: string): Promise<string | undefined | null>;
 }
 
 //= ==========================

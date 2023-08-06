@@ -3,11 +3,9 @@
 'use strict';
 import type { TextDocument, Uri } from 'vscode';
 import { InteractiveInputScheme, NotebookCellScheme } from '../constants';
-import { InterpreterUri } from '../installer/types';
 import { isParentPath } from '../platform/fs-paths';
-import { Resource } from '../types';
 
-export function noop() {}
+export function noop() { }
 
 /**
  * Like `Readonly<>`, but recursive.
@@ -17,28 +15,11 @@ export function noop() {}
 
 type DeepReadonly<T> = T extends any[] ? IDeepReadonlyArray<T[number]> : DeepReadonlyNonArray<T>;
 type DeepReadonlyNonArray<T> = T extends object ? DeepReadonlyObject<T> : T;
-interface IDeepReadonlyArray<T> extends ReadonlyArray<DeepReadonly<T>> {}
+interface IDeepReadonlyArray<T> extends ReadonlyArray<DeepReadonly<T>> { }
 type DeepReadonlyObject<T> = {
     readonly [P in NonFunctionPropertyNames<T>]: DeepReadonly<T[P]>;
 };
 type NonFunctionPropertyNames<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T];
-
-/**
- * Checking whether something is a Resource (Uri/undefined).
- * Using `instanceof Uri` doesn't always work as the object is not an instance of Uri (at least not in tests).
- * That's why VSC too has a helper method `URI.isUri` (though not public).
- *
- * @export
- * @param {InterpreterUri} [resource]
- * @returns {resource is Resource}
- */
-export function isResource(resource?: InterpreterUri): resource is Resource {
-    if (!resource) {
-        return true;
-    }
-    const uri = resource as Uri;
-    return typeof uri.path === 'string' && typeof uri.scheme === 'string';
-}
 
 /**
  * Checking whether something is a Uri.

@@ -4,8 +4,7 @@
 'use strict';
 
 import { Container } from 'inversify';
-import { Disposable, Memento, OutputChannel, window } from 'vscode';
-import { STANDARD_OUTPUT_CHANNEL } from './common/constants';
+import { Disposable, Memento, window } from 'vscode';
 import { registerTypes as platformRegisterTypes } from './common/platform/serviceRegistry';
 import { registerTypes as processRegisterTypes } from './common/process/serviceRegistry';
 import { registerTypes as commonRegisterTypes } from './common/serviceRegistry';
@@ -15,8 +14,6 @@ import {
     IDisposableRegistry,
     IExtensionContext,
     IMemento,
-    ILogOutputChannel,
-    ITestOutputChannel,
     WORKSPACE_MEMENTO,
 } from './common/types';
 import { registerTypes as variableRegisterTypes } from './common/variables/serviceRegistry';
@@ -53,7 +50,6 @@ export function initializeGlobals(
 
     const standardOutputChannel = window.createOutputChannel('Python Environments');
     context.subscriptions.push(registerLogger(new OutputChannelLogger(standardOutputChannel)));
-    serviceManager.addSingletonInstance<OutputChannel>(IOutputChannel, standardOutputChannel, STANDARD_OUTPUT_CHANNEL);
 
     return {
         context,

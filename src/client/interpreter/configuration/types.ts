@@ -1,45 +1,6 @@
-import { ConfigurationTarget, Disposable, QuickPickItem, Uri } from 'vscode';
+import { QuickPickItem } from 'vscode';
 import { Resource } from '../../common/types';
 import { PythonEnvironment } from '../../pythonEnvironments/info';
-
-export interface IPythonPathUpdaterService {
-    updatePythonPath(pythonPath: string | undefined): Promise<void>;
-}
-
-export const IPythonPathUpdaterServiceFactory = Symbol('IPythonPathUpdaterServiceFactory');
-export interface IPythonPathUpdaterServiceFactory {
-    getGlobalPythonPathConfigurationService(): IPythonPathUpdaterService;
-    getWorkspacePythonPathConfigurationService(wkspace: Uri): IPythonPathUpdaterService;
-    getWorkspaceFolderPythonPathConfigurationService(workspaceFolder: Uri): IPythonPathUpdaterService;
-}
-
-export const IPythonPathUpdaterServiceManager = Symbol('IPythonPathUpdaterServiceManager');
-export interface IPythonPathUpdaterServiceManager {
-    updatePythonPath(
-        pythonPath: string | undefined,
-        configTarget: ConfigurationTarget,
-        trigger: 'ui' | 'shebang' | 'load',
-        wkspace?: Uri,
-    ): Promise<void>;
-}
-
-export const IInterpreterSelector = Symbol('IInterpreterSelector');
-export interface IInterpreterSelector extends Disposable {
-    getRecommendedSuggestion(
-        suggestions: IInterpreterQuickPickItem[],
-        resource: Resource,
-    ): IInterpreterQuickPickItem | undefined;
-    /**
-     * @deprecated Only exists for old Jupyter integration.
-     */
-    getAllSuggestions(resource: Resource): Promise<IInterpreterQuickPickItem[]>;
-    getSuggestions(resource: Resource, useFullDisplayName?: boolean): IInterpreterQuickPickItem[];
-    suggestionToQuickPickItem(
-        suggestion: PythonEnvironment,
-        workspaceUri?: Uri | undefined,
-        useDetailedName?: boolean,
-    ): IInterpreterQuickPickItem;
-}
 
 export interface IInterpreterQuickPickItem extends QuickPickItem {
     path: string;

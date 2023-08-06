@@ -1,7 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { commands, Progress, ProgressLocation, QuickInputButton, QuickPickItem, ThemeIcon, window, workspace } from 'vscode';
-import { CancellationToken } from 'vscode-jsonrpc';
+import { CancellationToken, commands, Progress, ProgressLocation, QuickInputButton, QuickPickItem, ThemeIcon, window, workspace } from 'vscode';
 import { ApplicationShell } from '../client/common/application/applicationShell';
 import { execObservable } from '../client/common/process/rawProcessApis';
 import { InputStep, MultiStepInput } from '../client/common/utils/multiStepInput';
@@ -36,7 +35,6 @@ function getSortedEnvsFromWhichWeCanCreateVenvEnv(environments: PythonEnvironmen
             case EnvironmentType.Venv:
             case EnvironmentType.VirtualEnv:
             case EnvironmentType.VirtualEnvWrapper:
-            case EnvironmentType.WindowsStore:
                 return true;
             default:
                 return false;

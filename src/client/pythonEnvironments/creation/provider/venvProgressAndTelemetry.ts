@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 import { CreateEnv } from '../../../common/utils/localize';
-import { sendTelemetryEvent } from '../../../telemetry';
-import { EventName } from '../../../telemetry/constants';
 import { CreateEnvironmentProgress } from '../types';
 
 export const VENV_CREATED_MARKER = 'CREATED_VENV:';
@@ -39,10 +37,6 @@ export class VenvProgressAndTelemetry {
             VENV_CREATED_MARKER,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.created });
-                sendTelemetryEvent(EventName.ENVIRONMENT_CREATED, undefined, {
-                    environmentType: 'venv',
-                    reason: 'created',
-                });
                 return undefined;
             },
         ],
@@ -50,10 +44,6 @@ export class VenvProgressAndTelemetry {
             VENV_EXISTING_MARKER,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.existing });
-                sendTelemetryEvent(EventName.ENVIRONMENT_CREATED, undefined, {
-                    environmentType: 'venv',
-                    reason: 'existing',
-                });
                 return undefined;
             },
         ],
@@ -61,10 +51,6 @@ export class VenvProgressAndTelemetry {
             INSTALLING_REQUIREMENTS,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.installingPackages });
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'requirements.txt',
-                });
                 return undefined;
             },
         ],
@@ -72,214 +58,98 @@ export class VenvProgressAndTelemetry {
             INSTALLING_PYPROJECT,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.installingPackages });
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'pyproject.toml',
-                });
                 return undefined;
             },
         ],
         [
             PIP_NOT_INSTALLED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_FAILED, undefined, {
-                    environmentType: 'venv',
-                    reason: 'noPip',
-                });
-                return PIP_NOT_INSTALLED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => PIP_NOT_INSTALLED_MARKER,
         ],
         [
             DISTUTILS_NOT_INSTALLED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_FAILED, undefined, {
-                    environmentType: 'venv',
-                    reason: 'noDistUtils',
-                });
-                return VENV_NOT_INSTALLED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => VENV_NOT_INSTALLED_MARKER,
         ],
         [
             VENV_NOT_INSTALLED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_FAILED, undefined, {
-                    environmentType: 'venv',
-                    reason: 'noVenv',
-                });
-                return VENV_NOT_INSTALLED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => VENV_NOT_INSTALLED_MARKER,
         ],
         [
             INSTALL_REQUIREMENTS_FAILED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES_FAILED, undefined, {
-                    environmentType: 'venv',
-                    using: 'requirements.txt',
-                });
-                return INSTALL_REQUIREMENTS_FAILED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => INSTALL_REQUIREMENTS_FAILED_MARKER,
         ],
         [
             INSTALL_PYPROJECT_FAILED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES_FAILED, undefined, {
-                    environmentType: 'venv',
-                    using: 'pyproject.toml',
-                });
-                return INSTALL_PYPROJECT_FAILED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => INSTALL_PYPROJECT_FAILED_MARKER,
         ],
         [
             CREATE_VENV_FAILED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_FAILED, undefined, {
-                    environmentType: 'venv',
-                    reason: 'other',
-                });
-                return CREATE_VENV_FAILED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => CREATE_VENV_FAILED_MARKER,
         ],
         [
             VENV_ALREADY_EXISTS_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_CREATED, undefined, {
-                    environmentType: 'venv',
-                    reason: 'existing',
-                });
-                return undefined;
-            },
+            (_progress: CreateEnvironmentProgress) => undefined,
         ],
         [
             INSTALLED_REQUIREMENTS_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLED_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'requirements.txt',
-                });
-                return undefined;
-            },
+            (_progress: CreateEnvironmentProgress) => undefined,
         ],
         [
             INSTALLED_PYPROJECT_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLED_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'pyproject.toml',
-                });
-                return undefined;
-            },
+            (_progress: CreateEnvironmentProgress) => undefined,
         ],
         [
             UPGRADED_PIP_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLED_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'pipUpgrade',
-                });
-                return undefined;
-            },
+            (_progress: CreateEnvironmentProgress) => undefined,
         ],
         [
             UPGRADE_PIP_FAILED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES_FAILED, undefined, {
-                    environmentType: 'venv',
-                    using: 'pipUpgrade',
-                });
-                return UPGRADE_PIP_FAILED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => UPGRADE_PIP_FAILED_MARKER,
         ],
         [
             DOWNLOADING_PIP_MARKER,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.downloadingPip });
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'pipDownload',
-                });
                 return undefined;
             },
         ],
         [
             DOWNLOAD_PIP_FAILED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES_FAILED, undefined, {
-                    environmentType: 'venv',
-                    using: 'pipDownload',
-                });
-                return DOWNLOAD_PIP_FAILED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => DOWNLOAD_PIP_FAILED_MARKER,
         ],
         [
             INSTALLING_PIP_MARKER,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.installingPip });
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'pipInstall',
-                });
                 return undefined;
             },
         ],
         [
             INSTALL_PIP_FAILED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES_FAILED, undefined, {
-                    environmentType: 'venv',
-                    using: 'pipInstall',
-                });
-                return INSTALL_PIP_FAILED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => INSTALL_PIP_FAILED_MARKER,
         ],
         [
             CREATING_MICROVENV_MARKER,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.creatingMicrovenv });
-                sendTelemetryEvent(EventName.ENVIRONMENT_CREATING, undefined, {
-                    environmentType: 'microvenv',
-                    pythonVersion: undefined,
-                });
                 return undefined;
             },
         ],
         [
             CREATE_MICROVENV_FAILED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_FAILED, undefined, {
-                    environmentType: 'microvenv',
-                    reason: 'other',
-                });
-                return CREATE_MICROVENV_FAILED_MARKER;
-            },
+            (_progress: CreateEnvironmentProgress) => CREATE_MICROVENV_FAILED_MARKER,
         ],
         [
             CREATE_MICROVENV_FAILED_MARKER2,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_FAILED, undefined, {
-                    environmentType: 'microvenv',
-                    reason: 'other',
-                });
-                return CREATE_MICROVENV_FAILED_MARKER2;
-            },
+            (_progress: CreateEnvironmentProgress) => CREATE_MICROVENV_FAILED_MARKER2,
         ],
         [
             MICROVENV_CREATED_MARKER,
-            (_progress: CreateEnvironmentProgress) => {
-                sendTelemetryEvent(EventName.ENVIRONMENT_CREATED, undefined, {
-                    environmentType: 'microvenv',
-                    reason: 'created',
-                });
-                return undefined;
-            },
+            (_progress: CreateEnvironmentProgress) => undefined,
         ],
         [
             UPGRADING_PIP_MARKER,
             (progress: CreateEnvironmentProgress) => {
                 progress.report({ message: CreateEnv.Venv.upgradingPip });
-                sendTelemetryEvent(EventName.ENVIRONMENT_INSTALLING_PACKAGES, undefined, {
-                    environmentType: 'venv',
-                    using: 'pipUpgrade',
-                });
                 return undefined;
             },
         ],
@@ -287,7 +157,7 @@ export class VenvProgressAndTelemetry {
 
     private lastError: string | undefined = undefined;
 
-    constructor(private readonly progress: CreateEnvironmentProgress) {}
+    constructor(private readonly progress: CreateEnvironmentProgress) { }
 
     public getLastError(): string | undefined {
         return this.lastError;

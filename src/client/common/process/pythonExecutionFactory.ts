@@ -8,7 +8,7 @@ import { IServiceContainer } from '../../ioc/types';
 import { sendTelemetryEvent } from '../../telemetry';
 import { EventName } from '../../telemetry/constants';
 import { IFileSystem } from '../platform/types';
-import { IConfigurationService, IDisposableRegistry, IInterpreterPathService } from '../types';
+import { IConfigurationService, IDisposableRegistry } from '../types';
 import { ProcessService } from './proc';
 import { createCondaEnv, createPythonEnv, createMicrosoftStoreEnv } from './pythonEnvironment';
 import { createPythonProcessService } from './pythonProcess';
@@ -22,9 +22,6 @@ import {
     IPythonExecutionFactory,
     IPythonExecutionService,
 } from './types';
-import { IInterpreterAutoSelectionService } from '../../interpreter/autoSelection/types';
-import { sleep } from '../utils/async';
-import { traceError } from '../../logging';
 
 @injectable()
 export class PythonExecutionFactory implements IPythonExecutionFactory {
@@ -40,8 +37,6 @@ export class PythonExecutionFactory implements IPythonExecutionFactory {
         @inject(IProcessServiceFactory) private readonly processServiceFactory: IProcessServiceFactory,
         @inject(IConfigurationService) private readonly configService: IConfigurationService,
         @inject(IComponentAdapter) private readonly pyenvs: IComponentAdapter,
-        @inject(IInterpreterAutoSelectionService) private readonly autoSelection: IInterpreterAutoSelectionService,
-        @inject(IInterpreterPathService) private readonly interpreterPathExpHelper: IInterpreterPathService,
     ) {
         // Acquire other objects here so that if we are called during dispose they are available.
         this.disposables = this.serviceContainer.get<IDisposableRegistry>(IDisposableRegistry);
@@ -56,25 +51,6 @@ export class PythonExecutionFactory implements IPythonExecutionFactory {
                 IActivatedEnvironmentLaunch,
             );
             await activatedEnvLaunch.selectIfLaunchedViaActivatedEnv();
-            // If python path wasn't passed in, we need to auto select it and then read it
-            // from the configuration.
-            const interpreterPath = this.interpreterPathExpHelper.get(options.resource);
-            if (!interpreterPath || interpreterPath === 'python') {
-                // Block on autoselection if no interpreter selected.
-                // Note autoselection blocks on discovery, so we do not want discovery component
-                // to block on this code. Discovery component should 'options.pythonPath' before
-                // calling into this, so this scenario should not happen. But in case consumer
-                // makes such an error. So break the loop via timeout and log error.
-                const success = await Promise.race([
-                    this.autoSelection.autoSelectInterpreter(options.resource).then(() => true),
-                    sleep(50000).then(() => false),
-                ]);
-                if (!success) {
-                    traceError(
-                        'Autoselection timeout out, this is likely a issue with how consumer called execution factory API. Using default python to execute.',
-                    );
-                }
-            }
             pythonPath = this.configService.getSettings(options.resource).pythonPath;
         }
         const processService: IProcessService = await this.processServiceFactory.create(options.resource);

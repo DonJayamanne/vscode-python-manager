@@ -2,9 +2,8 @@
 // Licensed under the MIT License.
 
 import { CancellationToken, QuickPickItem, Uri } from 'vscode';
-import { Common } from '../../../browser/localize';
 import { Octicons } from '../../../common/constants';
-import { CreateEnv } from '../../../common/utils/localize';
+import { Common, CreateEnv } from '../../../common/utils/localize';
 import { executeCommand } from '../../../common/vscodeApis/commandApis';
 import { showErrorMessage, showQuickPickWithBack } from '../../../common/vscodeApis/windowApis';
 import { traceLog } from '../../../logging';

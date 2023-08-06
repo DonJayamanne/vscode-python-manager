@@ -9,15 +9,8 @@ import { IExtensionActivationManager } from './activation/types';
 
 import { IApplicationEnvironment } from './common/application/types';
 import { UseProposedApi } from './common/constants';
-import { registerTypes as installerRegisterTypes } from './common/installer/serviceRegistry';
-import { IConfigurationService } from './common/types';
+import { IConfigurationService, IInterpreterPathService, IPathUtils } from './common/types';
 import { IInterpreterService } from './interpreter/contracts';
-import { setLoggingLevel } from './logging';
-import { ReplProvider } from './providers/replProvider';
-import { TerminalProvider } from './providers/terminalProvider';
-import { registerTypes as commonRegisterTerminalTypes } from './terminals/serviceRegistry';
-import { ICodeExecutionManager } from './terminals/types';
-import { registerTypes as interpretersRegisterTypes } from './interpreter/serviceRegistry';
 import { registerTypes as registerEnvironmentTypes } from '../environments/serviceRegistry';
 
 // components
@@ -25,7 +18,8 @@ import * as pythonEnvironments from './pythonEnvironments';
 
 import { ActivationResult, ExtensionState } from './components';
 import { Components } from './extensionInit';
-import { getLoggingLevel } from './logging/settings';
+import { IInterpreterQuickPick } from './interpreter/configuration/types';
+import { registerAllCreateEnvironmentFeatures } from './pythonEnvironments/creation/registrations';
 
 export async function activateComponents(
     // `ext` is passed to any extra activation funcs.
@@ -86,15 +80,6 @@ async function activateLegacy(ext: ExtensionState): Promise<ActivationResult> {
     const { enableProposedApi } = applicationEnv.packageJson;
     serviceManager.addSingletonInstance<boolean>(UseProposedApi, enableProposedApi);
     // Feature specific registrations.
-    interpretersRegisterTypes(serviceManager);
-    installerRegisterTypes(serviceManager);
-    commonRegisterTerminalTypes(serviceManager);
-
-    // Note we should not trigger any extension related code which logs, until we have set logging level. So we cannot
-    // use configurations service to get level setting. Instead, we use Workspace service to query for setting as it
-    // directly queries VSCode API.
-    setLoggingLevel(getLoggingLevel());
-
     activationRegisterTypes(serviceManager);
 
     // "initialize" "services"
@@ -104,19 +89,12 @@ async function activateLegacy(ext: ExtensionState): Promise<ActivationResult> {
 
     // "activate" everything else
     const manager = serviceContainer.get<IExtensionActivationManager>(IExtensionActivationManager);
-    disposables.push(manager);
+    context.subscriptions.push(manager);
 
     // Settings are dependent on Experiment service, so we need to initialize it after experiments are activated.
     serviceContainer.get<IConfigurationService>(IConfigurationService).getSettings();
 
     const activationPromise = manager.activate();
-
-    serviceManager.get<ICodeExecutionManager>(ICodeExecutionManager).registerCommands();
-
-    context.subscriptions.push(new ReplProvider(serviceContainer));
-
-    const terminalProvider = new TerminalProvider(serviceContainer);
-    context.subscriptions.push(terminalProvider);
 
     registerEnvironmentTypes(serviceManager, context);
     return { fullyReady: activationPromise };

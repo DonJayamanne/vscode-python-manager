@@ -4,13 +4,11 @@
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { createWriteStream } from 'fs-extra';
 import { isPromise } from 'rxjs/internal-compatibility';
 import { Disposable } from 'vscode';
 import { StopWatch } from '../common/utils/stopWatch';
 import { sendTelemetryEvent } from '../telemetry';
 import { EventName } from '../telemetry/constants';
-import { FileLogger } from './fileLogger';
 import { Arguments, ILogging, LogLevel, TraceDecoratorType, TraceOptions } from './types';
 import { argsToLogString, returnValueToLogString } from './util';
 
@@ -26,13 +24,6 @@ export function registerLogger(logger: ILogging): Disposable {
     };
 }
 
-export function initializeFileLogging(disposables: Disposable[]): void {
-    if (process.env.VSC_PYTHON_LOG_FILE) {
-        const fileLogger = new FileLogger(createWriteStream(process.env.VSC_PYTHON_LOG_FILE));
-        disposables.push(fileLogger);
-        disposables.push(registerLogger(fileLogger));
-    }
-}
 
 export function traceLog(...args: Arguments): void {
     loggers.forEach((l) => l.traceLog(...args));

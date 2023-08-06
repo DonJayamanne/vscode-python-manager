@@ -55,7 +55,6 @@ export function canEnvBeDeleted(envType: EnvironmentType) {
         case EnvironmentType.Pyenv:
         case EnvironmentType.System:
         case EnvironmentType.Unknown:
-        case EnvironmentType.WindowsStore:
             return false;
         default:
             return false;
@@ -74,7 +73,6 @@ export function canEnvBeCreated(envType: EnvironmentType) {
         case EnvironmentType.Pyenv:
         case EnvironmentType.System:
         case EnvironmentType.Unknown:
-        case EnvironmentType.WindowsStore:
             return false;
         default:
             return false;

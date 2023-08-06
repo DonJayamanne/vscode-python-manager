@@ -5,10 +5,8 @@
 
 import { inject, injectable } from 'inversify';
 import { Terminal } from 'vscode';
-import { IConfigurationService } from '../../types';
 import { ITerminalActivator, ITerminalHelper, TerminalActivationOptions } from '../types';
 import { BaseTerminalActivator } from './base';
-import { inTerminalEnvVarExperiment } from '../../experiments/helpers';
 
 @injectable()
 export class TerminalActivator implements ITerminalActivator {
@@ -16,8 +14,6 @@ export class TerminalActivator implements ITerminalActivator {
     private pendingActivations = new WeakMap<Terminal, Promise<boolean>>();
     constructor(
         @inject(ITerminalHelper) readonly helper: ITerminalHelper,
-        @inject(IConfigurationService) private readonly configurationService: IConfigurationService,
-        @inject(IExperimentService) private readonly experimentService: IExperimentService,
     ) {
         this.initialize();
     }
@@ -34,17 +30,10 @@ export class TerminalActivator implements ITerminalActivator {
         return promise;
     }
     private async activateEnvironmentInTerminalImpl(
-        terminal: Terminal,
-        options?: TerminalActivationOptions,
+        _terminal: Terminal,
+        _options?: TerminalActivationOptions,
     ): Promise<boolean> {
-        const settings = this.configurationService.getSettings(options?.resource);
-        const activateEnvironment =
-            settings.terminal.activateEnvironment && !inTerminalEnvVarExperiment(this.experimentService);
-        if (!activateEnvironment || options?.hideFromUser) {
-            return false;
-        }
-
-        return this.baseActivator.activateEnvironmentInTerminal(terminal, options);
+        return false;
     }
     protected initialize() {
         this.baseActivator = new BaseTerminalActivator(this.helper);

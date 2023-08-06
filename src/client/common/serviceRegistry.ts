@@ -2,13 +2,9 @@
 // Licensed under the MIT License.
 import { IExtensionSingleActivationService } from '../activation/types';
 import {
-    IBrowserService,
     IConfigurationService,
     ICurrentProcess,
     IEditorUtils,
-    IExtensions,
-    IInstaller,
-    IInterpreterPathService,
     IPathUtils,
     IPersistentStateFactory,
     IRandom,
@@ -20,18 +16,14 @@ import { IServiceManager } from '../ioc/types';
 import { ActiveResourceService } from './application/activeResource';
 import { ApplicationEnvironment } from './application/applicationEnvironment';
 import { ApplicationShell } from './application/applicationShell';
-import { ClipboardService } from './application/clipboard';
 import { CommandManager } from './application/commandManager';
 import { DocumentManager } from './application/documentManager';
-import { Extensions } from './application/extensions';
 import { TerminalManager } from './application/terminalManager';
 import {
     IActiveResourceService,
     IApplicationEnvironment,
     IApplicationShell,
-    IClipboard,
     ICommandManager,
-    IContextKeyManager,
     IDocumentManager,
     ITerminalManager,
     IWorkspaceService,
@@ -40,9 +32,6 @@ import { WorkspaceService } from './application/workspace';
 import { ConfigurationService } from './configuration/service';
 import { PipEnvExecutionPath } from './configuration/executionSettings/pipEnvExecution';
 import { EditorUtils } from './editor';
-import { ProductInstaller } from './installer/productInstaller';
-import { InterpreterPathService } from './interpreterPathService';
-import { BrowserService } from './net/browser';
 import { PersistentStateFactory } from './persistentState';
 import { PathUtils } from './platform/pathUtils';
 import { CurrentProcess } from './process/currentProcess';
@@ -72,35 +61,26 @@ import {
 
 import { IMultiStepInputFactory, MultiStepInputFactory } from './utils/multiStepInput';
 import { Random } from './utils/random';
-import { ContextKeyManager } from './application/contextKeyManager';
-import { CreatePythonFileCommandHandler } from './application/commands/createPythonFile';
-import { RequireJupyterPrompt } from '../jupyter/requireJupyterPrompt';
 import { isWindows } from './platform/platformService';
 
 export function registerTypes(serviceManager: IServiceManager): void {
     serviceManager.addSingletonInstance<boolean>(IsWindows, isWindows());
 
     serviceManager.addSingleton<IActiveResourceService>(IActiveResourceService, ActiveResourceService);
-    serviceManager.addSingleton<IInterpreterPathService>(IInterpreterPathService, InterpreterPathService);
-    serviceManager.addSingleton<IExtensions>(IExtensions, Extensions);
     serviceManager.addSingleton<IRandom>(IRandom, Random);
     serviceManager.addSingleton<IPersistentStateFactory>(IPersistentStateFactory, PersistentStateFactory);
     serviceManager.addBinding(IPersistentStateFactory, IExtensionSingleActivationService);
     serviceManager.addSingleton<ITerminalServiceFactory>(ITerminalServiceFactory, TerminalServiceFactory);
     serviceManager.addSingleton<IPathUtils>(IPathUtils, PathUtils);
     serviceManager.addSingleton<IApplicationShell>(IApplicationShell, ApplicationShell);
-    serviceManager.addSingleton<IClipboard>(IClipboard, ClipboardService);
     serviceManager.addSingleton<ICurrentProcess>(ICurrentProcess, CurrentProcess);
-    serviceManager.addSingleton<IInstaller>(IInstaller, ProductInstaller);
     serviceManager.addSingleton<ICommandManager>(ICommandManager, CommandManager);
-    serviceManager.addSingleton<IContextKeyManager>(IContextKeyManager, ContextKeyManager);
     serviceManager.addSingleton<IConfigurationService>(IConfigurationService, ConfigurationService);
     serviceManager.addSingleton<IWorkspaceService>(IWorkspaceService, WorkspaceService);
     serviceManager.addSingleton<IProcessLogger>(IProcessLogger, ProcessLogger);
     serviceManager.addSingleton<IDocumentManager>(IDocumentManager, DocumentManager);
     serviceManager.addSingleton<ITerminalManager>(ITerminalManager, TerminalManager);
     serviceManager.addSingleton<IApplicationEnvironment>(IApplicationEnvironment, ApplicationEnvironment);
-    serviceManager.addSingleton<IBrowserService>(IBrowserService, BrowserService);
     serviceManager.addSingleton<IEditorUtils>(IEditorUtils, EditorUtils);
     serviceManager.addSingleton<ITerminalActivator>(ITerminalActivator, TerminalActivator);
 

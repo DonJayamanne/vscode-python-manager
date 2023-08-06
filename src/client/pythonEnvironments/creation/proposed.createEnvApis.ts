@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License
 
+import { EnvironmentTools } from '@vscode/python-extension';
 import { Event, Disposable, WorkspaceFolder } from 'vscode';
-import { EnvironmentTools } from '../../api/types';
 
 export type CreateEnvironmentUserActions = 'Back' | 'Cancel';
 export type EnvironmentProviderId = string;

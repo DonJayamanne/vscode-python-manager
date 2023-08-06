@@ -15,7 +15,7 @@ import { identifyShellFromShellPath } from '../terminal/shellDetectors/baseShell
 
 @injectable()
 export class ProcessLogger implements IProcessLogger {
-    constructor(@inject(IWorkspaceService) private readonly workspaceService: IWorkspaceService) {}
+    constructor(@inject(IWorkspaceService) private readonly workspaceService: IWorkspaceService) { }
 
     public logProcess(fileOrCommand: string, args?: string[], options?: SpawnOptions) {
         if (!isTestExecution() && isCI && process.env.UITEST_DISABLE_PROCESS_LOGGING) {
@@ -28,8 +28,7 @@ export class ProcessLogger implements IProcessLogger {
             : fileOrCommand;
         const info = [`> ${this.getDisplayCommands(command)}`];
         if (options?.cwd) {
-            const cwd: string = typeof options?.cwd === 'string' ? options?.cwd : options?.cwd?.toString();
-            info.push(`cwd: ${this.getDisplayCommands(cwd)}`);
+            info.push(`cwd: ${this.getDisplayCommands(options.cwd.toString())}`);
         }
         if (typeof options?.shell === 'string') {
             info.push(`shell: ${identifyShellFromShellPath(options?.shell)}`);

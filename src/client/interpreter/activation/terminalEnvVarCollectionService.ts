@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import * as path from 'path';
 import { inject, injectable } from 'inversify';
 import {
     ProgressOptions,
@@ -11,15 +10,12 @@ import {
     EnvironmentVariableCollection,
     EnvironmentVariableScope,
 } from 'vscode';
-import { pathExists } from 'fs-extra';
 import { IExtensionActivationService } from '../../activation/types';
 import { IApplicationShell, IApplicationEnvironment, IWorkspaceService } from '../../common/application/types';
-import { inTerminalEnvVarExperiment } from '../../common/experiments/helpers';
 import { IPlatformService } from '../../common/platform/types';
 import { identifyShellFromShellPath } from '../../common/terminal/shellDetectors/baseShellDetector';
 import {
     IExtensionContext,
-    IExperimentService,
     Resource,
     IDisposableRegistry,
     IConfigurationService,
@@ -31,8 +27,6 @@ import { traceDecoratorVerbose, traceVerbose } from '../../logging';
 import { IInterpreterService } from '../contracts';
 import { defaultShells } from './service';
 import { IEnvironmentActivationService } from './types';
-import { EnvironmentType } from '../../pythonEnvironments/info';
-import { getSearchPathEnvVarNames } from '../../common/utils/exec';
 
 @injectable()
 export class TerminalEnvVarCollectionService implements IExtensionActivationService {
@@ -52,31 +46,30 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
         @inject(IInterpreterService) private interpreterService: IInterpreterService,
         @inject(IExtensionContext) private context: IExtensionContext,
         @inject(IApplicationShell) private shell: IApplicationShell,
-        @inject(IExperimentService) private experimentService: IExperimentService,
         @inject(IApplicationEnvironment) private applicationEnvironment: IApplicationEnvironment,
         @inject(IDisposableRegistry) private disposables: IDisposableRegistry,
         @inject(IEnvironmentActivationService) private environmentActivationService: IEnvironmentActivationService,
         @inject(IWorkspaceService) private workspaceService: IWorkspaceService,
         @inject(IConfigurationService) private readonly configurationService: IConfigurationService,
         @inject(IPathUtils) private readonly pathUtils: IPathUtils,
-    ) {}
+    ) { }
 
     public async activate(resource: Resource): Promise<void> {
-        if (!inTerminalEnvVarExperiment(this.experimentService)) {
-            this.context.environmentVariableCollection.clear();
-            await this.handleMicroVenv(resource);
-            if (!this.registeredOnce) {
-                this.interpreterService.onDidChangeInterpreter(
-                    async (r) => {
-                        await this.handleMicroVenv(r);
-                    },
-                    this,
-                    this.disposables,
-                );
-                this.registeredOnce = true;
-            }
-            return;
-        }
+        // if (!inTerminalEnvVarExperiment(this.experimentService)) {
+        //     this.context.environmentVariableCollection.clear();
+        //     await this.handleMicroVenv(resource);
+        //     if (!this.registeredOnce) {
+        //         this.interpreterService.onDidChangeInterpreter(
+        //             async (r) => {
+        //                 await this.handleMicroVenv(r);
+        //             },
+        //             this,
+        //             this.disposables,
+        //         );
+        //         this.registeredOnce = true;
+        //     }
+        //     return;
+        // }
         if (!this.registeredOnce) {
             this.interpreterService.onDidChangeInterpreter(
                 async (r) => {
@@ -164,25 +157,6 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
         return workspaceFolder
             ? envVarCollection.getScopedEnvironmentVariableCollection({ workspaceFolder })
             : envVarCollection;
-    }
-
-    private async handleMicroVenv(resource: Resource) {
-        const workspaceFolder = this.getWorkspaceFolder(resource);
-        const interpreter = await this.interpreterService.getActiveInterpreter(resource);
-        if (interpreter?.envType === EnvironmentType.Venv) {
-            const activatePath = path.join(path.dirname(interpreter.path), 'activate');
-            if (!(await pathExists(activatePath))) {
-                const envVarCollection = this.getEnvironmentVariableCollection(workspaceFolder);
-                const pathVarName = getSearchPathEnvVarNames()[0];
-                envVarCollection.replace(
-                    'PATH',
-                    `${path.dirname(interpreter.path)}${path.delimiter}${process.env[pathVarName]}`,
-                    { applyAtShellIntegration: true },
-                );
-                return;
-            }
-        }
-        this.context.environmentVariableCollection.clear();
     }
 
     private getWorkspaceFolder(resource: Resource): WorkspaceFolder | undefined {

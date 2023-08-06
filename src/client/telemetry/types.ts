@@ -3,8 +3,6 @@
 
 'use strict';
 
-import type { IEventNamePropertyMapping } from './index';
-import { EventName } from './constants';
 
-export type EditorLoadTelemetry = IEventNamePropertyMapping[EventName.EDITOR_LOAD];
-export type PythonInterpreterTelemetry = IEventNamePropertyMapping[EventName.PYTHON_INTERPRETER];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type PythonInterpreterTelemetry = any;

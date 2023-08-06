@@ -72,31 +72,9 @@ export interface ICondaService {
 
 export const IInterpreterService = Symbol('IInterpreterService');
 export interface IInterpreterService {
-    triggerRefresh(query?: PythonLocatorQuery, options?: TriggerRefreshOptions): Promise<void>;
-    readonly refreshPromise: Promise<void> | undefined;
-    readonly onDidChangeInterpreters: Event<PythonEnvironmentsChangedEvent>;
-    onDidChangeInterpreterConfiguration: Event<Uri | undefined>;
     onDidChangeInterpreter: Event<Uri | undefined>;
-    onDidChangeInterpreterInformation: Event<PythonEnvironment>;
-    /**
-     * Note this API does not trigger the refresh but only works with the current refresh if any. Information
-     * returned by this is more or less upto date but is not guaranteed to be.
-     */
-    hasInterpreters(filter?: (e: PythonEnvironment) => Promise<boolean>): Promise<boolean>;
-    getInterpreters(resource?: Uri): PythonEnvironment[];
-    /**
-     * @deprecated Only exists for old Jupyter integration.
-     */
-    getAllInterpreters(resource?: Uri): Promise<PythonEnvironment[]>;
     getActiveInterpreter(resource?: Uri): Promise<PythonEnvironment | undefined>;
     getInterpreterDetails(pythonPath: string, resoure?: Uri): Promise<undefined | PythonEnvironment>;
-    refresh(resource: Resource): Promise<void>;
-    initialize(): void;
-}
-
-export const IShebangCodeLensProvider = Symbol('IShebangCodeLensProvider');
-export interface IShebangCodeLensProvider extends CodeLensProvider {
-    detectShebang(document: TextDocument, resolveShebangAsInterpreter?: boolean): Promise<string | undefined>;
 }
 
 export const IInterpreterHelper = Symbol('IInterpreterHelper');

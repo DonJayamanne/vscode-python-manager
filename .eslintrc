@@ -22,7 +22,6 @@
                 "ts-ignore": "allow-with-description"
             }
         ],
-        "consistent-return": "off",
         "@typescript-eslint/explicit-module-boundary-types": "off",
         "no-bitwise": "off",
         "no-dupe-class-members": "off",
@@ -52,7 +51,7 @@
         "@typescript-eslint/no-var-requires": "off",
 
         // Other rules
-        "class-methods-use-this": ["error", { "exceptMethods": ["dispose"] }],
+        "class-methods-use-this": ["off", { "exceptMethods": ["dispose"] }],
         "func-names": "off",
         "import/extensions": "off",
         "import/namespace": "off",

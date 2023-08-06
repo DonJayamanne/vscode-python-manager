@@ -211,7 +211,7 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Node>
     }
 
     public async refresh(clearCache = false) {
-        await this.interpreterService.triggerRefresh({ clearCache });
+        // await this.interpreterService.triggerRefresh({ clearCache });
         await this.refreshInternal(clearCache);
     }
 

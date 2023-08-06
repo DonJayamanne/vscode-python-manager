@@ -6,10 +6,6 @@ if ((Reflect as any).metadata === undefined) {
     require('reflect-metadata');
 }
 
-// Initialize source maps (this must never be moved up nor further down).
-import { initialize } from './sourceMapSupport';
-initialize(require('vscode'));
-
 //===============================================
 // We start tracking the extension's startup time at this point.  The
 // locations at which we record various Intervals are marked below in
@@ -21,25 +17,20 @@ import { StopWatch } from './common/utils/stopWatch';
 const stopWatch = new StopWatch();
 
 // Initialize file logging here. This should not depend on too many things.
-import { initializeFileLogging, traceError } from './logging';
 const logDispose: { dispose: () => void }[] = [];
-initializeFileLogging(logDispose);
 
 //===============================================
 // loading starts here
 
 import { ProgressLocation, ProgressOptions, window } from 'vscode';
-import { IApplicationShell, IWorkspaceService } from './common/application/types';
-import { IAsyncDisposableRegistry, IDisposableRegistry, IExtensionContext } from './common/types';
+import { IDisposableRegistry, IExtensionContext } from './common/types';
 import { createDeferred } from './common/utils/async';
 import { Common } from './common/utils/localize';
 import { activateComponents, activateFeatures } from './extensionActivation';
 import { initializeStandard, initializeComponents, initializeGlobals } from './extensionInit';
 import { IServiceContainer } from './ioc/types';
-import { sendErrorTelemetry, sendStartupTelemetry } from './startupTelemetry';
 import { IStartupDurations } from './types';
-import { runAfterActivation } from './common/utils/runAfterActivation';
-import { IInterpreterService } from './interpreter/contracts';
+import { disposeAll } from './common/utils/resourceLifecycle';
 
 durations.codeLoadingTime = stopWatch.elapsedTime;
 
@@ -53,22 +44,7 @@ let activatedServiceContainer: IServiceContainer | undefined;
 // public functions
 
 export async function activate(context: IExtensionContext): Promise<void> {
-    let ready: Promise<void>;
-    let serviceContainer: IServiceContainer;
-    try {
-        [ready, serviceContainer] = await activateUnsafe(context, stopWatch, durations);
-    } catch (ex) {
-        // We want to completely handle the error
-        // before notifying VS Code.
-        await handleError(ex as Error, durations);
-        throw ex; // re-raise
-    }
-    // Send the "success" telemetry only if activation did not fail.
-    // Otherwise Telemetry is send via the error handler.
-
-    sendStartupTelemetry(ready, durations, stopWatch, serviceContainer)
-        // Run in the background.
-        .ignoreErrors();
+    await activateUnsafe(context, stopWatch, durations);
 }
 
 export async function deactivate(): Promise<void> {
@@ -120,54 +96,10 @@ async function activateUnsafe(
 
     startupDurations.totalActivateTime = startupStopWatch.elapsedTime - startupDurations.startActivateTime;
     activationDeferred.resolve();
-
-    setTimeout(async () => {
-        if (activatedServiceContainer) {
-            const workspaceService = activatedServiceContainer.get<IWorkspaceService>(IWorkspaceService);
-            if (workspaceService.isTrusted) {
-                const interpreterManager = activatedServiceContainer.get<IInterpreterService>(IInterpreterService);
-                const workspaces = workspaceService.workspaceFolders ?? [];
-                await interpreterManager
-                    .refresh(workspaces.length > 0 ? workspaces[0].uri : undefined)
-                    .catch((ex) => traceError('Python Extension: interpreterManager.refresh', ex));
-            }
-        }
-
-        runAfterActivation();
-    });
-
     return [activationPromise, ext.legacyIOC.serviceContainer];
 }
 
 function displayProgress(promise: Promise<any>) {
     const progressOptions: ProgressOptions = { location: ProgressLocation.Window, title: Common.loadingExtension };
     window.withProgress(progressOptions, () => promise);
-}
-
-/////////////////////////////
-// error handling
-
-async function handleError(ex: Error, startupDurations: IStartupDurations) {
-    notifyUser(
-        "Extension activation failed, run the 'Developer: Toggle Developer Tools' command for more information.",
-    );
-    traceError('extension activation failed', ex);
-
-    await sendErrorTelemetry(ex, startupDurations, activatedServiceContainer);
-}
-
-interface IAppShell {
-    showErrorMessage(string: string): Promise<void>;
-}
-
-function notifyUser(msg: string) {
-    try {
-        let appShell: IAppShell = (window as any) as IAppShell;
-        if (activatedServiceContainer) {
-            appShell = (activatedServiceContainer.get<IApplicationShell>(IApplicationShell) as any) as IAppShell;
-        }
-        appShell.showErrorMessage(msg).ignoreErrors();
-    } catch (ex) {
-        traceError('Failed to Notify User', ex);
-    }
 }

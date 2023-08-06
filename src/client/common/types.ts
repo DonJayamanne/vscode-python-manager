@@ -5,13 +5,11 @@
 
 import { Socket } from 'net';
 import {
-    CancellationToken,
     ConfigurationChangeEvent,
     ConfigurationTarget,
     Disposable,
     DocumentSymbolProvider,
     Event,
-    Extension,
     ExtensionContext,
     Memento,
     LogOutputChannel,
@@ -19,7 +17,6 @@ import {
     WorkspaceEdit,
     OutputChannel,
 } from 'vscode';
-import type { InstallOptions, InterpreterUri, ModuleInstallFlags } from './installer/types';
 import { EnvironmentVariables } from './variables/types';
 
 export interface IDisposable {
@@ -28,11 +25,11 @@ export interface IDisposable {
 }
 
 export const ILogOutputChannel = Symbol('ILogOutputChannel');
-export interface ILogOutputChannel extends LogOutputChannel {}
+export interface ILogOutputChannel extends LogOutputChannel { }
 export const ITestOutputChannel = Symbol('ITestOutputChannel');
-export interface ITestOutputChannel extends OutputChannel {}
+export interface ITestOutputChannel extends OutputChannel { }
 export const IDocumentSymbolProvider = Symbol('IDocumentSymbolProvider');
-export interface IDocumentSymbolProvider extends DocumentSymbolProvider {}
+export interface IDocumentSymbolProvider extends DocumentSymbolProvider { }
 export const IsWindows = Symbol('IS_WINDOWS');
 export const IDisposableRegistry = Symbol('IDisposableRegistry');
 export type IDisposableRegistry = IDisposable[];
@@ -116,30 +113,6 @@ export enum Product {
     python = 29,
 }
 
-export const IInstaller = Symbol('IInstaller');
-
-export interface IInstaller {
-    promptToInstall(
-        product: Product,
-        resource?: InterpreterUri,
-        cancel?: CancellationToken,
-        flags?: ModuleInstallFlags,
-    ): Promise<InstallerResponse>;
-    install(
-        product: Product,
-        resource?: InterpreterUri,
-        cancel?: CancellationToken,
-        flags?: ModuleInstallFlags,
-        options?: InstallOptions,
-    ): Promise<InstallerResponse>;
-    isInstalled(product: Product, resource?: InterpreterUri): Promise<boolean>;
-    isProductVersionCompatible(
-        product: Product,
-        semVerRequirement: string,
-        resource?: InterpreterUri,
-    ): Promise<ProductInstallStatus>;
-    translateProductToModuleName(product: Product): string;
-}
 
 // TODO: Drop IPathUtils in favor of IFileSystemPathUtils.
 // See https://github.com/microsoft/vscode-python/issues/8542.
@@ -175,7 +148,6 @@ export interface ICurrentProcess {
 }
 
 export interface IPythonSettings {
-    readonly interpreter: IInterpreterSettings;
     readonly pythonPath: string;
     readonly venvPath: string;
     readonly venvFolders: string[];
@@ -186,7 +158,6 @@ export interface IPythonSettings {
     readonly terminal: ITerminalSettings;
     readonly disableInstallationChecks: boolean;
     readonly globalModuleInstallation: boolean;
-    readonly onDidChange: Event<void>;
     readonly defaultInterpreterPath: string;
     initialize(): void;
 }
@@ -203,15 +174,6 @@ export const IConfigurationService = Symbol('IConfigurationService');
 export interface IConfigurationService {
     readonly onDidChange: Event<ConfigurationChangeEvent | undefined>;
     getSettings(resource?: Uri): IPythonSettings;
-    isTestExecution(): boolean;
-    updateSetting(setting: string, value?: unknown, resource?: Uri, configTarget?: ConfigurationTarget): Promise<void>;
-    updateSectionSetting(
-        section: string,
-        setting: string,
-        value?: unknown,
-        resource?: Uri,
-        configTarget?: ConfigurationTarget,
-    ): Promise<void>;
 }
 
 /**
@@ -250,49 +212,8 @@ export type DownloadOptions = {
 };
 
 export const IExtensionContext = Symbol('ExtensionContext');
-export interface IExtensionContext extends ExtensionContext {}
+export interface IExtensionContext extends ExtensionContext { }
 
-export const IExtensions = Symbol('IExtensions');
-export interface IExtensions {
-    /**
-     * All extensions currently known to the system.
-     */
-
-    readonly all: readonly Extension<unknown>[];
-
-    /**
-     * An event which fires when `extensions.all` changes. This can happen when extensions are
-     * installed, uninstalled, enabled or disabled.
-     */
-    readonly onDidChange: Event<void>;
-
-    /**
-     * Get an extension by its full identifier in the form of: `publisher.name`.
-     *
-     * @param extensionId An extension identifier.
-     * @return An extension or `undefined`.
-     */
-
-    getExtension(extensionId: string): Extension<unknown> | undefined;
-
-    /**
-     * Get an extension its full identifier in the form of: `publisher.name`.
-     *
-     * @param extensionId An extension identifier.
-     * @return An extension or `undefined`.
-     */
-    getExtension<T>(extensionId: string): Extension<T> | undefined;
-
-    /**
-     * Determines which extension called into our extension code based on call stacks.
-     */
-    determineExtensionFromCallStack(): Promise<{ extensionId: string; displayName: string }>;
-}
-
-export const IBrowserService = Symbol('IBrowserService');
-export interface IBrowserService {
-    launch(url: string): void;
-}
 
 export const IEditorUtils = Symbol('IEditorUtils');
 export interface IEditorUtils {
@@ -306,26 +227,9 @@ export interface IHashFormat {
     number: number; // If hash format is a number
     string: string; // If hash format is a string
 }
-
-export const IAsyncDisposableRegistry = Symbol('IAsyncDisposableRegistry');
-export interface IAsyncDisposableRegistry extends IAsyncDisposable {
-    push(disposable: IDisposable | IAsyncDisposable): void;
-}
 export type InterpreterConfigurationScope = { uri: Resource; configTarget: ConfigurationTarget };
 export type InspectInterpreterSettingType = {
     globalValue?: string;
     workspaceValue?: string;
     workspaceFolderValue?: string;
 };
-
-/**
- * Interface used to access current Interpreter Path
- */
-export const IInterpreterPathService = Symbol('IInterpreterPathService');
-export interface IInterpreterPathService {
-    onDidChange: Event<InterpreterConfigurationScope>;
-    get(resource: Resource): string;
-    inspect(resource: Resource): InspectInterpreterSettingType;
-    update(resource: Resource, configTarget: ConfigurationTarget, value: string | undefined): Promise<void>;
-    copyOldInterpreterStorageValuesToNew(resource: Resource): Promise<void>;
-}

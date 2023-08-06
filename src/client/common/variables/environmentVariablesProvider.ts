@@ -5,7 +5,6 @@ import { inject, injectable, optional } from 'inversify';
 import * as path from 'path';
 import { ConfigurationChangeEvent, Disposable, Event, EventEmitter, FileSystemWatcher, Uri } from 'vscode';
 import { traceError, traceVerbose } from '../../logging';
-import { sendFileCreationTelemetry } from '../../telemetry/envFileTelemetry';
 import { IWorkspaceService } from '../application/types';
 import { PythonSettings } from '../configSettings';
 import { IPlatformService } from '../platform/types';
@@ -182,7 +181,6 @@ export class EnvironmentVariablesProvider implements IEnvironmentVariablesProvid
 
     private onEnvironmentFileCreated(workspaceFolderUri?: Uri) {
         this.onEnvironmentFileChanged(workspaceFolderUri);
-        sendFileCreationTelemetry();
     }
 
     private onEnvironmentFileChanged(workspaceFolderUri?: Uri) {

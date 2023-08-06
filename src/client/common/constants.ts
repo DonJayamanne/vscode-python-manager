@@ -20,11 +20,10 @@ export const PYTHON_NOTEBOOKS = [
     { scheme: InteractiveInputScheme, language: PYTHON_LANGUAGE },
 ];
 
-export const PVSC_EXTENSION_ID = 'donjayamanne.python-environment-manager';
-export const CODE_RUNNER_EXTENSION_ID = 'formulahendry.code-runner';
+export const PVSC_EXTENSION_ID = 'ms-python.python';
 export const PYLANCE_EXTENSION_ID = 'ms-python.vscode-pylance';
 export const JUPYTER_EXTENSION_ID = 'ms-toolsai.jupyter';
-export const AppinsightsKey = '_';
+export const AppinsightsKey = '0c6ae279ed8443289764825290e4f9e2-1a736e7c-1324-4338-be46-fc2a58ae4d14-7255';
 
 export type Channel = 'stable' | 'insiders';
 
@@ -34,12 +33,38 @@ export enum CommandSource {
 }
 
 export namespace Commands {
-    export const Exec_In_Terminal = 'python.envManager.execInTerminal';
-    export const Exec_In_Terminal_Icon = 'python.envManager.execInTerminal-icon';
-    export const ViewOutput = 'python.envManager.viewOutput';
-    export const Start_REPL = 'python.envManagerstartREPL';
-    export const Create_Terminal = 'python.envManager.createTerminal';
-    export const ClearStorage = 'python.envManager.clearPersistentStorage';
+    export const ClearStorage = 'python.envManager.clearCacheAndReload';
+    export const CreateNewFile = 'python.createNewFile';
+    export const ClearWorkspaceInterpreter = 'python.clearWorkspaceInterpreter';
+    export const Create_Environment = 'python.envManager.createEnvironment';
+    export const Create_Environment_Button = 'python.envManager.createEnvironment-button';
+    export const Create_Terminal = 'python.createTerminal';
+    export const Debug_In_Terminal = 'python.debugInTerminal';
+    export const Enable_Linter = 'python.enableLinting';
+    export const Enable_SourceMap_Support = 'python.enableSourceMapSupport';
+    export const Exec_In_Terminal = 'python.execInTerminal';
+    export const Exec_In_Terminal_Icon = 'python.execInTerminal-icon';
+    export const Exec_In_Separate_Terminal = 'python.execInDedicatedTerminal';
+    export const Exec_Selection_In_Django_Shell = 'python.execSelectionInDjangoShell';
+    export const Exec_Selection_In_Terminal = 'python.execSelectionInTerminal';
+    export const GetSelectedInterpreterPath = 'python.interpreterPath';
+    export const InstallJupyter = 'python.installJupyter';
+    export const InstallPython = 'python.installPython';
+    export const InstallPythonOnLinux = 'python.installPythonOnLinux';
+    export const InstallPythonOnMac = 'python.installPythonOnMac';
+    export const LaunchTensorBoard = 'python.launchTensorBoard';
+    export const PickLocalProcess = 'python.pickLocalProcess';
+    export const RefreshTensorBoard = 'python.refreshTensorBoard';
+    export const ReportIssue = 'python.reportIssue';
+    export const Run_Linter = 'python.runLinting';
+    export const Set_Interpreter = 'python.setInterpreter';
+    export const Set_Linter = 'python.setLinter';
+    export const Set_ShebangInterpreter = 'python.setShebangInterpreter';
+    export const Sort_Imports = 'python.sortImports';
+    export const Start_REPL = 'python.startREPL';
+    export const Tests_Configure = 'python.configureTests';
+    export const TriggerEnvironmentSelection = 'python.triggerEnvSelection';
+    export const ViewOutput = 'python.viewOutput';
 }
 
 // Look at https://microsoft.github.io/vscode-codicons/dist/codicon.html for other Octicon icon ids

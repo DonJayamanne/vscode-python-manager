@@ -7,11 +7,9 @@ import { inject, injectable, multiInject } from 'inversify';
 import { TextDocument } from 'vscode';
 import { IActiveResourceService, IDocumentManager, IWorkspaceService } from '../common/application/types';
 import { PYTHON_LANGUAGE } from '../common/constants';
-import { IFileSystem } from '../common/platform/types';
-import { IDisposable, IInterpreterPathService, Resource } from '../common/types';
+import { IDisposable, Resource } from '../common/types';
 import { Deferred } from '../common/utils/async';
 import { traceDecoratorError } from '../logging';
-import { sendActivationTelemetry } from '../telemetry/envFileTelemetry';
 import { IExtensionActivationManager, IExtensionActivationService, IExtensionSingleActivationService } from './types';
 
 @injectable()
@@ -30,10 +28,8 @@ export class ExtensionActivationManager implements IExtensionActivationManager {
         private singleActivationServices: IExtensionSingleActivationService[],
         @inject(IDocumentManager) private readonly documentManager: IDocumentManager,
         @inject(IWorkspaceService) private readonly workspaceService: IWorkspaceService,
-        @inject(IFileSystem) private readonly fileSystem: IFileSystem,
         @inject(IActiveResourceService) private readonly activeResourceService: IActiveResourceService,
-        @inject(IInterpreterPathService) private readonly interpreterPathService: IInterpreterPathService,
-    ) {}
+    ) { }
 
     private filterServices() {
         if (!this.workspaceService.isTrusted) {
@@ -85,7 +81,6 @@ export class ExtensionActivationManager implements IExtensionActivationManager {
         }
         this.activatedWorkspaces.add(key);
 
-        await sendActivationTelemetry(this.fileSystem, this.workspaceService, resource);
         await Promise.all(this.activationServices.map((item) => item.activate(resource)));
     }
 

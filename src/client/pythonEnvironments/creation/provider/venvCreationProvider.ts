@@ -14,8 +14,6 @@ import { pickWorkspaceFolder } from '../common/workspaceSelection';
 import { IInterpreterQuickPick } from '../../../interpreter/configuration/types';
 import { EnvironmentType, PythonEnvironment } from '../../info';
 import { MultiStepAction, MultiStepNode, withProgress } from '../../../common/vscodeApis/windowApis';
-import { sendTelemetryEvent } from '../../../telemetry';
-import { EventName } from '../../../telemetry/constants';
 import { VenvProgressAndTelemetry, VENV_CREATED_MARKER, VENV_EXISTING_MARKER } from './venvProgressAndTelemetry';
 import { showErrorMessageWithLogs } from '../common/commonUtils';
 import { IPackageInstallSelection, pickPackagesToInstall } from './venvUtils';
@@ -82,11 +80,6 @@ async function createVenv(
     progress.report({
         message: CreateEnv.Venv.creating,
     });
-    sendTelemetryEvent(EventName.ENVIRONMENT_CREATING, undefined, {
-        environmentType: 'venv',
-        pythonVersion: undefined,
-    });
-
     const deferred = createDeferred<string | undefined>();
     traceLog('Running Env creation script: ', [command, ...args]);
     const { proc, out, dispose } = execObservable(command, args, {

@@ -5,7 +5,6 @@
 
 import { CancellationToken, Event, Terminal, Uri } from 'vscode';
 import { PythonEnvironment } from '../../pythonEnvironments/info';
-import { IEventNamePropertyMapping } from '../../telemetry/index';
 import { IDisposable, Resource } from '../types';
 
 export enum TerminalActivationProviders {
@@ -146,7 +145,8 @@ export interface ITerminalActivationCommandProvider {
     ): Promise<string[] | undefined>;
 }
 
-export type ShellIdentificationTelemetry = IEventNamePropertyMapping['TERMINAL_SHELL_IDENTIFICATION'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ShellIdentificationTelemetry = any;
 
 export const IShellDetector = Symbol('IShellDetector');
 /**

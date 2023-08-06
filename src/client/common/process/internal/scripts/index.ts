@@ -25,7 +25,6 @@ const SCRIPTS_DIR = _SCRIPTS_DIR;
 // In some cases one or more types related to a script are exported
 // from the same module in which the script's function is located.
 // These types typically relate to the return type of "parse()".
-export * as testingTools from './testing_tools';
 
 // interpreterInfo.py
 
