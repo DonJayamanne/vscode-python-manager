@@ -33,7 +33,7 @@
         "theme": "dark"
     },
     "engines": {
-        "vscode": "^1.79.0-20230526"
+        "vscode": "^1.80.0"
     },
     "enableTelemetry": false,
     "keywords": [
@@ -50,9 +50,7 @@
         "Other",
         "Data Science"
     ],
-    "activationEvents": [
-        "onView:pythonEnvironments"
-    ],
+    "activationEvents": [],
     "main": "./out/client/extension",
     "contributes": {
         "commands": [
