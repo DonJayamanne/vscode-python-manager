@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 import * as os from 'os';
-import { CancellationToken, ProgressLocation, WorkspaceFolder } from 'vscode';
+import { pathExists } from 'fs-extra';
+import { Environment } from '@vscode/python-extension';
+import { CancellationToken, ProgressLocation, QuickInputButtons, Uri, WorkspaceFolder, window } from 'vscode';
 import { Commands, PVSC_EXTENSION_ID } from '../../../common/constants';
 import { createVenvScript } from '../../../common/process/internal/scripts';
 import { execObservable } from '../../../common/process/rawProcessApis';
@@ -12,7 +14,7 @@ import { traceError, traceLog, traceVerbose } from '../../../logging';
 import { CreateEnvironmentProgress } from '../types';
 import { pickWorkspaceFolder } from '../common/workspaceSelection';
 import { IInterpreterQuickPick } from '../../../interpreter/configuration/types';
-import { EnvironmentType, PythonEnvironment } from '../../info';
+import { EnvironmentType } from '../../info';
 import { MultiStepAction, MultiStepNode, withProgress } from '../../../common/vscodeApis/windowApis';
 import { VenvProgressAndTelemetry, VENV_CREATED_MARKER, VENV_EXISTING_MARKER } from './venvProgressAndTelemetry';
 import { showErrorMessageWithLogs } from '../common/commonUtils';
@@ -23,12 +25,20 @@ import {
     CreateEnvironmentOptions,
     CreateEnvironmentResult,
 } from '../proposed.createEnvApis';
+import { getEnvironmentType } from '../../../../environments/utils';
 
-function generateCommandArgs(installInfo?: IPackageInstallSelection[], addGitIgnore?: boolean): string[] {
+function generateCommandArgs(
+    installInfo?: IPackageInstallSelection[],
+    addGitIgnore?: boolean,
+    name?: string,
+): string[] {
     const command: string[] = [createVenvScript()];
 
     if (addGitIgnore) {
         command.push('--git-ignore');
+    }
+    if (name && (name || '').trim().length) {
+        command.push('--name', name.toCommandArgumentForPythonExt());
     }
 
     if (installInfo) {
@@ -150,13 +160,14 @@ export class VenvCreationProvider implements CreateEnvironmentProvider {
                     try {
                         interpreter = await this.interpreterQuickPick.getInterpreterViaQuickPick(
                             workspace.uri,
-                            (i: PythonEnvironment) =>
+                            (i: Environment) =>
                                 [
                                     EnvironmentType.System,
                                     EnvironmentType.MicrosoftStore,
                                     EnvironmentType.Global,
                                     EnvironmentType.Pyenv,
-                                ].includes(i.envType) && i.type === undefined, // only global intepreters
+                                    EnvironmentType.Unknown,
+                                ].includes(getEnvironmentType(i)), // only global intepreters
                             {
                                 skipRecommended: true,
                                 showBackButton: true,
@@ -213,12 +224,55 @@ export class VenvCreationProvider implements CreateEnvironmentProvider {
         );
         interpreterStep.next = packagesStep;
 
+        let name: string | undefined;
+        const nameStep = new MultiStepNode(
+            packagesStep,
+            async () =>
+                new Promise<MultiStepAction>((resolve) => {
+                    const input = window.createInputBox();
+                    input.title = 'Environment Name';
+                    input.value = '.venv';
+                    input.buttons = [QuickInputButtons.Back];
+                    input.onDidTriggerButton((e) => {
+                        if (e === QuickInputButtons.Back) {
+                            resolve(MultiStepAction.Back);
+                            input.hide();
+                        }
+                    });
+                    input.onDidHide(() => {
+                        resolve(MultiStepAction.Cancel);
+                        input.hide();
+                    });
+                    input.onDidAccept(async () => {
+                        const envName = input.value.trim();
+                        if (!envName.length) {
+                            input.validationMessage = 'Enter a valid name';
+                            return;
+                        }
+                        if (workspace) {
+                            const fullPath = Uri.joinPath(workspace.uri, envName);
+                            if (await pathExists(fullPath.fsPath)) {
+                                input.validationMessage = 'Environment with the same name already exists';
+                                return;
+                            }
+                        }
+                        name = envName;
+                        input.validationMessage = '';
+                        resolve(MultiStepAction.Continue);
+                        input.hide();
+                    });
+                    input.show();
+                }),
+            undefined,
+        );
+        packagesStep.next = nameStep;
+
         const action = await MultiStepNode.run(workspaceStep);
         if (action === MultiStepAction.Back || action === MultiStepAction.Cancel) {
             throw action;
         }
 
-        const args = generateCommandArgs(installInfo, addGitIgnore);
+        const args = generateCommandArgs(installInfo, addGitIgnore, name);
 
         return withProgress(
             {

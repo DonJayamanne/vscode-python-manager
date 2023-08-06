@@ -1,6 +1,7 @@
 // export class TerminalManager {
 //     constructor() {}
 
+import { PythonExtension } from '@vscode/python-extension';
 import { commands, ExtensionContext, Terminal, window, workspace } from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs-extra';
@@ -10,99 +11,141 @@ import { sleep } from '../client/common/utils/async';
 import { IServiceContainer } from '../client/ioc/types';
 import { _SCRIPTS_DIR } from '../client/common/process/internal/scripts/constants';
 import { StopWatch } from '../client/common/utils/stopWatch';
-import { PythonEnvironment } from '../client/pythonEnvironments/info';
 import { getHashString } from '../client/common/platform/fileSystem';
-import { createTempFile } from './helpers';
+import { createTempFile, getDisplayPath } from './helpers';
 import { traceError } from '../client/logging';
+import { IComponentAdapter } from '../client/interpreter/contracts';
+import { getEnvironmentType, isNonPythonCondaEnvironment } from './utils';
 
 type WorkspaceFolderUri = string;
-type EnvVars = { [key: string]: string | null };
-const defaultEnvVars = new Map<WorkspaceFolderUri, EnvVars>();
+const defaultEnvVars = new Map<WorkspaceFolderUri, NodeJS.ProcessEnv>();
 export function activate(context: ExtensionContext, iocContainer: IServiceContainer) {
-    workspace.onDidChangeConfiguration(() => {
-        // Any setting could cause env vars to get updated.
-        // Lets not try to be too smart here.
-        defaultEnvVars.clear();
-    }, undefined, context.subscriptions);
+    workspace.onDidChangeConfiguration(
+        () => {
+            // Any setting could cause env vars to get updated.
+            // Lets not try to be too smart here.
+            defaultEnvVars.clear();
+        },
+        undefined,
+        context.subscriptions,
+    );
 
-    context.subscriptions.push(commands.registerCommand('python.envManager.openInTerminal', async (e: { env: PythonEnvironment }) => {
-        const helper = iocContainer.get<ITerminalHelper>(ITerminalHelper);
-        // const activatedEnvVars = iocContainrer.get<IEnvironmentActivationService>(IEnvironmentActivationService);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        // const env = { ...process.env } as any;
-        const cwd = await pickFolder();
-        // const condaEnvVars =
-        //     (await e.env.envType) === EnvironmentType.Conda
-        //         ? activatedEnvVars.getActivatedEnvironmentVariables(e.resource, e.env)
-        //         : undefined;
-        // if (e.env.envType === EnvironmentType.Conda && condaEnvVars) {
-        //     const name = e.env.envName ? `Python ${e.env.envName}` : e.env.displayName;
-        //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        //     const terminal = window.createTerminal({ hideFromUser: true, name, env: condaEnvVars as any, cwd });
-        //     terminal.show(false);
-        // } else {
-        // const pathName = getSearchPathEnvVarNames()[0];
-        // env[pathName] = `${path.dirname(e.env.path)}${path.delimiter}${env[pathName]}`;
-
-        const name = e.env.envName ? `Python ${e.env.envName}` : e.env.displayName;
-        let terminal = window.createTerminal({ hideFromUser: true, name, cwd });
-        const shell = helper.identifyTerminalShell(terminal);
-        const activationCommands = await helper.getEnvironmentActivationCommands(shell, cwd, e.env);
-        if (Array.isArray(activationCommands) && activationCommands.length > 0) {
-            terminal.show(false);
-            for (const command of activationCommands || []) {
-                terminal.sendText(command);
-                // No point sleeping if we have just one command.
-                if (activationCommands.length > 1) {
+    let api: PythonExtension;
+    context.subscriptions.push(
+        commands.registerCommand('python.envManager.openInTerminal', async ({ id }: { id: string }) => {
+            const helper = iocContainer.get<ITerminalHelper>(ITerminalHelper);
+            const pyenvs = iocContainer.get<IComponentAdapter>(IComponentAdapter);
+            // const activatedEnvVars = iocContainrer.get<IEnvironmentActivationService>(IEnvironmentActivationService);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // const env = { ...process.env } as any;
+            api = api || (await PythonExtension.api());
+            const env = api.environments.known.find((e) => e.id === id);
+            if (!env) {
+                return;
+            }
+            const interpreter = await pyenvs.getInterpreterDetails(env.path);
+            if (!interpreter || (!interpreter?.sysPrefix && isNonPythonCondaEnvironment(env))) {
+                // interpreter = undefined;
+                return;
+            }
+            const cwd = await pickFolder();
+            // const condaEnvVars =
+            //     (await env.envType) === EnvironmentType.Conda
+            //         ? activatedEnvVars.getActivatedEnvironmentVariables(e.resource, e.env)
+            //         : undefined;
+            // if (e.env.envType === EnvironmentType.Conda && condaEnvVars) {
+            //     const name = e.env.envName ? `Python ${e.env.envName}` : e.env.displayName;
+            //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            //     const terminal = window.createTerminal({ hideFromUser: true, name, env: condaEnvVars as any, cwd });
+            //     terminal.show(false);
+            // } else {
+            // const pathName = getSearchPathEnvVarNames()[0];
+            // env[pathName] = `${path.dirname(e.env.path)}${path.delimiter}${env[pathName]}`;
+            const name = env.environment?.name
+                ? `Python ${env.environment.name}`
+                : getDisplayPath(path.dirname(env.environment?.folderUri?.fsPath || env.path));
+            let terminal = window.createTerminal({ hideFromUser: true, name, cwd });
+            const shell = helper.identifyTerminalShell(terminal);
+            const activationCommands = await helper.getEnvironmentActivationCommands(shell, cwd, interpreter);
+            if (Array.isArray(activationCommands) && activationCommands.length > 0) {
+                terminal.show(false);
+                for (const command of activationCommands || []) {
+                    terminal.sendText(command);
+                    // No point sleeping if we have just one command.
+                    if (activationCommands.length > 1) {
+                        await sleep(1_000);
+                    }
+                }
+                return;
+            }
+            if (isWsl) {
+                // Using strict will not work, we'll need to update the Path variable with the terminal.
+                const exportScript = await getPathScript(shell, env.path, context);
+                terminal.dispose();
+                terminal = window.createTerminal({
+                    hideFromUser: true,
+                    name,
+                    cwd,
+                });
+                if (exportScript) {
+                    terminal.sendText(exportScript);
                     await sleep(1_000);
                 }
+                terminal.show(false);
+                return;
             }
-            return;
-        }
-        if (isWsl) {
-            // Using strict will not work, we'll need to update the Path variable with the terminal.
-            const exportScript = await getPathScript(shell, e.env.path, context);
-            terminal.dispose();
-            terminal = window.createTerminal({
-                hideFromUser: true,
-                name,
-                cwd
-            });
-            if (exportScript) {
-                terminal.sendText(exportScript);
-                await sleep(1_000);
+            try {
+                const [baseEnvVars, symlinkDir] = await Promise.all([
+                    getEmptyTerminalVariables(terminal, shell, cwd?.fsPath),
+                    createSymlink(shell, env.path, context),
+                ]);
+                terminal.dispose();
+                const envVars = { ...baseEnvVars };
+                // Windows seems to support both.
+                ['Path', 'PATH'].forEach((pathVarName) => {
+                    if (typeof envVars[pathVarName] === 'string') {
+                        envVars[pathVarName] = `${symlinkDir}${path.delimiter}${envVars[pathVarName]}`;
+                    }
+                });
+                const terminalCustomEnvVars = window.createTerminal({
+                    hideFromUser: false,
+                    name,
+                    cwd,
+                    env: envVars,
+                    strictEnv: true,
+                });
+                terminalCustomEnvVars.show(false);
+            } catch (ex) {
+                console.error(`Failed to create terminal for ${getEnvironmentType(env)}:${env.path}`, ex);
             }
-            terminal.show(false);
-            return;
-        }
+        }),
+    );
+}
+let cachedEnvVariables: Promise<undefined | NodeJS.ProcessEnv>;
+export async function getTerminalEnvVariables(iocContainer: IServiceContainer) {
+    if (cachedEnvVariables) {
+        return cachedEnvVariables;
+    }
+    cachedEnvVariables = (async () => {
+        const helper = iocContainer.get<ITerminalHelper>(ITerminalHelper);
+        const terminal = window.createTerminal({ hideFromUser: true, name: 'hidden' });
+        const shell = helper.identifyTerminalShell(terminal);
         try {
-            const [baseEnvVars, symlinkDir] = await Promise.all([
-                getEmptyTerminalVariables(terminal, shell, cwd?.fsPath),
-                createSymlink(shell, e.env.path, context),
-            ]);
-            terminal.dispose();
-            const env = { ...baseEnvVars };
-            // Windows seems to support both.
-            ['Path', 'PATH'].forEach(pathVarName => {
-                if (typeof env[pathVarName] === 'string') {
-                    env[pathVarName] = `${symlinkDir}${path.delimiter}${env[pathVarName]}`;
-                }
-            });
-            const terminalCustomEnvVars = window.createTerminal({
-                hideFromUser: false,
-                name,
-                cwd,
-                env,
-                strictEnv: true,
-            });
-            terminalCustomEnvVars.show(false);
+            return await getEmptyTerminalVariables(terminal, shell);
         } catch (ex) {
-            console.error(`Failed to create terminal for ${e.env.envType}:${e.env.path}`, ex);
+            return undefined;
+        } finally {
+            terminal.dispose();
         }
-    }));
+    })();
+    return cachedEnvVariables;
 }
 
-async function getEmptyTerminalVariables(terminal: Terminal, shell: TerminalShellType, workspaceFolderUri = ''): Promise<EnvVars | undefined> {
+async function getEmptyTerminalVariables(
+    terminal: Terminal,
+    shell: TerminalShellType,
+    workspaceFolderUri = '',
+): Promise<NodeJS.ProcessEnv | undefined> {
     if (defaultEnvVars.has(workspaceFolderUri)) {
         return defaultEnvVars.get(workspaceFolderUri)!;
     }
@@ -114,15 +157,15 @@ async function getEmptyTerminalVariables(terminal: Terminal, shell: TerminalShel
         const stopWatch = new StopWatch();
         while (stopWatch.elapsedTime < 5_000) {
             if (await fs.pathExists(envFile.filePath)) {
-                break;
+                const contents = await fs.readFile(envFile.filePath, 'utf8');
+                if (contents.length > 0) {
+                    const envVars = cmd.parser(contents);
+                    defaultEnvVars.set(workspaceFolderUri, envVars);
+                    defaultEnvVars.set(workspaceFolderUri, envVars);
+                    return envVars;
+                }
             }
             await sleep(100);
-        }
-        if (await fs.pathExists(envFile.filePath)) {
-            const contents = await fs.readFile(envFile.filePath, 'utf8');
-            const envVars = cmd.parser(contents);
-            defaultEnvVars.set(workspaceFolderUri, envVars)
-            return envVars;
         }
         traceError(`Env vars file not created command ${cmd.command}`);
         return;
@@ -133,12 +176,15 @@ async function getEmptyTerminalVariables(terminal: Terminal, shell: TerminalShel
         envFile.dispose();
     }
 }
-function getEnvDumpCommand(shell: TerminalShellType, envFile: string): { command: string, parser: (output: string) => EnvVars } {
+function getEnvDumpCommand(
+    shell: TerminalShellType,
+    envFile: string,
+): { command: string; parser: (output: string) => NodeJS.ProcessEnv } {
     switch (shell) {
         case TerminalShellType.commandPrompt: {
             const parser = (output: string) => {
-                const dict: EnvVars = {};
-                output.split(/\r?\n/).forEach(line => {
+                const dict: NodeJS.ProcessEnv = {};
+                output.split(/\r?\n/).forEach((line) => {
                     if (line.indexOf('=') === -1) {
                         return;
                     }
@@ -153,9 +199,9 @@ function getEnvDumpCommand(shell: TerminalShellType, envFile: string): { command
         case TerminalShellType.powershell:
         case TerminalShellType.powershellCore: {
             const parser = (output: string) => {
-                const dict: EnvVars = {};
+                const dict: NodeJS.ProcessEnv = {};
                 let startProcessing = false;
-                output.split(/\r?\n/).forEach(line => {
+                output.split(/\r?\n/).forEach((line) => {
                     if (line.startsWith('----')) {
                         startProcessing = true;
                         return;
@@ -173,8 +219,8 @@ function getEnvDumpCommand(shell: TerminalShellType, envFile: string): { command
         }
         default: {
             const parser = (output: string) => {
-                const dict: EnvVars = {};
-                output.split(/\r?\n/).forEach(line => {
+                const dict: NodeJS.ProcessEnv = {};
+                output.split(/\r?\n/).forEach((line) => {
                     if (line.indexOf('=') === -1) {
                         return;
                     }
@@ -187,7 +233,6 @@ function getEnvDumpCommand(shell: TerminalShellType, envFile: string): { command
             return { command: `printenv > "${envFile.replace(/\\/g, '/')}"`, parser };
         }
     }
-
 }
 async function createSymlink(shell: TerminalShellType, pythonPath: string, context: ExtensionContext) {
     const hash = getHashString(pythonPath);
@@ -262,7 +307,10 @@ export async function getActivatedEnvVariables(
     return promise;
 }
 
-function createShellScript(shellType: TerminalShellType, realPath: string): { python: string; pip: string; extension: string } {
+function createShellScript(
+    shellType: TerminalShellType,
+    realPath: string,
+): { python: string; pip: string; extension: string } {
     switch (shellType) {
         case TerminalShellType.commandPrompt:
         case TerminalShellType.powershell:
@@ -276,8 +324,9 @@ function createShellScript(shellType: TerminalShellType, realPath: string): { py
                 pip: `
 @ECHO off
 "${realPath}" -m pip  %*
-`, extension: '.cmd'
-            }
+`,
+                extension: '.cmd',
+            };
 
         default:
             // To my knowledge all shell apart from windows (cmd and ps) can run shell scripts.
@@ -286,11 +335,13 @@ function createShellScript(shellType: TerminalShellType, realPath: string): { py
 "${realPath}"   "$@"
 ret=$?
 exit $ret
-`, pip: `#!/usr/bin/env bash
+`,
+                pip: `#!/usr/bin/env bash
 "${realPath}" -m pip   "$@"
 ret=$?
 exit $ret
-`, extension: ''
+`,
+                extension: '',
             };
     }
 }

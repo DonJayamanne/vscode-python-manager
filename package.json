@@ -87,6 +87,11 @@
                 "icon": "$(refresh)"
             },
             {
+                "command": "python.envManager.refreshing",
+                "title": "Loading Environments",
+                "icon": "$(loading~spin)"
+            },
+            {
                 "command": "python.envManager.setAsActiveInterpreter",
                 "title": "Set as active workspace interpreter",
                 "icon": "$(thumbsup)"
@@ -95,13 +100,38 @@
                 "command": "python.envManager.installPython",
                 "title": "Download and setup Python",
                 "icon": "$(cloud-download)"
+            },
+            {
+                "command": "python.envManager.updatePackage",
+                "title": "Update Package",
+                "icon": "$(cloud-download)"
+            },
+            {
+                "command": "python.envManager.uninstallPackage",
+                "title": "Uninstall Package",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "python.envManager.refreshPackages",
+                "title": "Refresh",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "python.envManager.updateAllPackages",
+                "title": "Update All Packages",
+                "icon": "$(cloud-download)"
             }
         ],
         "menus": {
             "view/title": [
                 {
                     "command": "python.envManager.refresh",
-                    "when": "view == pythonEnvironments",
+                    "when": "view == pythonEnvironments && !isRefreshingPythonEnvironments",
+                    "group": "navigation"
+                },
+                {
+                    "command": "python.envManager.refreshing",
+                    "when": "view == pythonEnvironments && isRefreshingPythonEnvironments",
                     "group": "navigation"
                 },
                 {
@@ -129,6 +159,26 @@
                 {
                     "command": "python.envManager.setAsActiveInterpreter",
                     "when": "view == pythonEnvironments && viewItem =~ /^env:/",
+                    "group": "inline@3"
+                },
+                {
+                    "command": "python.envManager.updatePackage",
+                    "when": "view == pythonEnvironments && viewItem =~ /^package:outdated/",
+                    "group": "inline@3"
+                },
+                {
+                    "command": "python.envManager.uninstallPackage",
+                    "when": "view == pythonEnvironments && viewItem =~ /^package:/",
+                    "group": "inline@3"
+                },
+                {
+                    "command": "python.envManager.refreshPackages",
+                    "when": "view == pythonEnvironments && viewItem =~ /^packageContainer/",
+                    "group": "inline@3"
+                },
+                {
+                    "command": "python.envManager.updateAllPackages",
+                    "when": "view == pythonEnvironments && viewItem =~ /^packageContainer/",
                     "group": "inline@3"
                 }
             ]

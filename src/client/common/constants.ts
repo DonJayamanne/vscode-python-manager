@@ -33,7 +33,7 @@ export enum CommandSource {
 }
 
 export namespace Commands {
-    export const ClearStorage = 'python.envManager.clearCacheAndReload';
+    export const ClearStorage = 'python.envManager.clearPersistentStorage';
     export const CreateNewFile = 'python.createNewFile';
     export const ClearWorkspaceInterpreter = 'python.clearWorkspaceInterpreter';
     export const Create_Environment = 'python.envManager.createEnvironment';

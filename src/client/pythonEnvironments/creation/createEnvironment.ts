@@ -136,7 +136,10 @@ export async function handleCreateEnvironmentCommand(
     options?: CreateEnvironmentOptions,
 ): Promise<CreateEnvironmentResult | undefined> {
     const optionsWithDefaults = getOptionsWithDefaults(options);
-    let selectedProvider: CreateEnvironmentProvider | undefined;
+    if (!optionsWithDefaults.showBackButton && providers.length === 1) {
+        optionsWithDefaults.showBackButton = false;
+    }
+    let selectedProvider: CreateEnvironmentProvider | undefined = providers.length === 1 ? providers[0] : undefined;
     const envTypeStep = new MultiStepNode(
         undefined,
         async (context?: MultiStepAction) => {
@@ -166,7 +169,7 @@ export async function handleCreateEnvironmentCommand(
 
     let result: CreateEnvironmentResult | undefined;
     const createStep = new MultiStepNode(
-        envTypeStep,
+        providers.length === 1 ? undefined : envTypeStep,
         async (context?: MultiStepAction) => {
             if (context === MultiStepAction.Back) {
                 // This step is to trigger creation, which can go into other extension.
@@ -188,7 +191,7 @@ export async function handleCreateEnvironmentCommand(
     );
     envTypeStep.next = createStep;
 
-    const action = await MultiStepNode.run(envTypeStep);
+    const action = await MultiStepNode.run(providers.length === 1 ? createStep : envTypeStep);
     if (options?.showBackButton) {
         if (action === MultiStepAction.Back || action === MultiStepAction.Cancel) {
             result = { action, workspaceFolder: undefined, path: undefined, error: undefined };

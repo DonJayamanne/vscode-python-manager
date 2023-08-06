@@ -1,21 +1,20 @@
+import { Environment, PythonExtension, ResolvedEnvironment } from '@vscode/python-extension';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { EOL } from 'os';
 import { CancellationToken, Progress, ProgressLocation, window } from 'vscode';
-import { ApplicationShell } from '../client/common/application/applicationShell';
-import { execObservable } from '../client/common/process/rawProcessApis';
-import { InputStep, MultiStepInput } from '../client/common/utils/multiStepInput';
-import { getUserHomeDir } from '../client/common/utils/platform';
-import { traceError, traceInfo, traceVerbose } from '../client/logging';
-import { Conda } from '../client/pythonEnvironments/common/environmentManagers/conda';
-import { getPyenvDir } from '../client/pythonEnvironments/common/environmentManagers/pyenv';
-import { exec } from '../client/pythonEnvironments/common/externalDependencies';
-import { EnvironmentType, PythonEnvironment } from '../client/pythonEnvironments/info';
-import { getDisplayPath, getEnvDisplayInfo, getEnvLoggingInfo, home } from './helpers';
-import { MICROMAMBA_ROOTPREFIX } from './micromamba/constants';
-import { RefreshUntilNewEnvIsAvailable } from './environments';
+import { ApplicationShell } from '../../client/common/application/applicationShell';
+import { execObservable } from '../../client/common/process/rawProcessApis';
+import { InputStep, MultiStepInput } from '../../client/common/utils/multiStepInput';
+import { getUserHomeDir } from '../../client/common/utils/platform';
+import { traceError, traceInfo, traceVerbose } from '../../client/logging';
+import { Conda } from '../../client/pythonEnvironments/common/environmentManagers/conda';
+import { exec } from '../../client/pythonEnvironments/common/externalDependencies';
+import { getDisplayPath, getEnvDisplayInfo, getEnvLoggingInfo, home } from '../helpers';
+import { MICROMAMBA_ROOTPREFIX } from '../micromamba/constants';
+import { isCondaEnvironment } from '../utils';
 
-type CondaPackageInfo = {
+export type CondaPackageInfo = {
     // eslint-disable-next-line camelcase
     base_url?: string;
     // eslint-disable-next-line camelcase
@@ -30,53 +29,96 @@ type CondaPackageInfo = {
     version: string;
 };
 
-type PipPackageInfo = {
-    name: string;
-    version: string;
-};
-export type PackageInfo = PipPackageInfo | CondaPackageInfo;
-export async function getPackages(env: PythonEnvironment) {
-    try {
-        const [pipPackages, condaPackages] = await Promise.all([getPipPackages(env), getCondaPackages(env)]);
-        const packages = new Map<string, PackageInfo>();
-        (pipPackages || []).forEach((pkg) => packages.set(pkg.name, pkg));
-        // Use conda packages as source of truth, as we might have more information
-        // when getting conda packages.
-        (condaPackages || []).forEach((pkg) => packages.set(pkg.name, pkg));
-        return Array.from(packages.values()).sort((a, b) =>
-            a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase()),
-        );
-    } catch (ex) {
-        traceError(`Failed to get package information for ${env.displayName})`, ex);
-        return [];
+type OutdatedPackageInfo = {
+    actions: {
+        FETCH: { version: string; name: string; }[],
+        LINK: { version: string; name: string; }[],
+        UNLINK: { version: string; name: string; }[],
     }
 }
-export async function getPipPackages(env: PythonEnvironment) {
-    if (env.envType === EnvironmentType.Conda) {
-        return;
-    }
 
-    const result = await exec(env.path, ['-m', 'pip', 'list', '--format', 'json'], { timeout: 60_000 });
-    traceVerbose(`python -m pip list --format --json: ${result.stdout}`);
-    const stdout = result.stdout.trim();
-    return stdout ? (JSON.parse(result.stdout) as PipPackageInfo[]) : [];
-}
-export async function getCondaPackages(env: PythonEnvironment) {
-    if (env.envType !== EnvironmentType.Conda || (!env.envName && !env.envPath)) {
+export async function getCondaPackages(env: Environment) {
+    if (!isCondaEnvironment(env) || !env.executable.uri) {
         return;
     }
     const conda = await Conda.getConda();
     if (!conda) {
         return;
     }
-    const args = env.envName ? ['list', '-n', env.envName] : ['list', '-p', env.envPath!];
+    const args = ['list'].concat(env.environment?.name ? ['-n', env.environment.name] : ['-p', env.environment?.folderUri?.fsPath || path.dirname(env.path)]);
     const result = await exec(conda.command, args.concat(['--json']), { timeout: 60_000 });
     const stdout = result.stdout.trim();
     traceVerbose(`conda info --json: ${result.stdout}`);
-    return stdout ? (JSON.parse(result.stdout) as CondaPackageInfo[]) : [];
+    const packages = stdout ? (JSON.parse(result.stdout) as CondaPackageInfo[]) : [];
+    return packages;
 }
-export async function deleteEnv(env: PythonEnvironment, progress: Progress<{ message?: string | undefined; increment?: number | undefined; }>) {
-    if (env.envType !== EnvironmentType.Conda || (!env.envName && !env.envPath)) {
+export async function getOutdatedCondaPackages(env: Environment): Promise<Map<string, string> | undefined> {
+    if (!isCondaEnvironment(env) || !env.executable.uri) {
+        return;
+    }
+    const conda = await Conda.getConda();
+    if (!conda) {
+        return;
+    }
+
+    const args = ['update', '--all', '-d'].concat(env.environment?.name ? ['-n', env.environment.name] : ['-p', env.environment?.folderUri?.fsPath || path.dirname(env.path)]);
+    const result = await exec(conda.command, args.concat(['--json']), { timeout: 60_000 });
+    const stdout = result.stdout.trim();
+    traceVerbose(`conda ${args.join(' ')} --json: ${result.stdout}`);
+    if (!stdout) {
+        return;
+    }
+    const map = new Map<string, string>();
+    const unlink = new Set<string>();
+    const { actions } = (JSON.parse(result.stdout) as OutdatedPackageInfo);
+    actions.UNLINK.forEach(pkg => unlink.add(pkg.name));
+    actions.LINK.forEach(pkg => {
+        if (unlink.has(pkg.name)) {
+            map.set(pkg.name, pkg.version);
+        }
+    });
+
+    return map;
+}
+export async function updateCondaPackages(env: Environment) {
+    if (!isCondaEnvironment(env) || !env.executable.uri) {
+        return;
+    }
+    const conda = await Conda.getConda();
+    if (!conda) {
+        return;
+    }
+
+    const args = ['update', '--all'].concat(env.environment?.name ? ['-n', env.environment.name] : ['-p', env.environment?.folderUri?.fsPath || path.dirname(env.path)]);
+    await exec(conda.command, args, { timeout: 60_000 });
+}
+export async function uninstallCondaPackage(env: Environment, pkg: CondaPackageInfo) {
+    if (!isCondaEnvironment(env) || !env.executable.uri) {
+        return;
+    }
+    const conda = await Conda.getConda();
+    if (!conda) {
+        return;
+    }
+
+    const args = ['remove', pkg.name, '-y'].concat(env.environment?.name ? ['-n', env.environment.name] : ['-p', env.environment?.folderUri?.fsPath || path.dirname(env.path)]);
+    await exec(conda.command, args, { timeout: 60_000 });
+}
+export async function updateCondaPackage(env: Environment, pkg: CondaPackageInfo) {
+    if (!isCondaEnvironment(env) || !env.executable.uri) {
+        return;
+    }
+    const conda = await Conda.getConda();
+    if (!conda) {
+        return;
+    }
+
+    const args = ['update', pkg.name, '-y'].concat(env.environment?.name ? ['-n', env.environment.name] : ['-p', env.environment?.folderUri?.fsPath || path.dirname(env.path)]);
+    await exec(conda.command, args, { timeout: 60_000 });
+}
+
+export async function deleteEnv(env: Environment | ResolvedEnvironment, progress: Progress<{ message?: string | undefined; increment?: number | undefined; }>) {
+    if (!isCondaEnvironment(env)) {
         traceError(`Cannot delete as its not a conda environment or no name/path for ${getEnvLoggingInfo(env)}`);
         return;
     }
@@ -84,7 +126,7 @@ export async function deleteEnv(env: PythonEnvironment, progress: Progress<{ mes
     if (!conda) {
         return;
     }
-    const args = env.envName ? ['-n', env.envName] : ['-p', env.envPath!];
+    const args = env.environment?.name ? ['-n', env.environment.name] : ['-p', env.environment?.folderUri?.fsPath || env.path];
     const message = `Deleting conda environment ${getEnvLoggingInfo(env)} with command ${[conda.command, 'env', 'remove'].concat(args).join(' ')}`;
     traceVerbose(message);
     progress.report({ message });
@@ -95,13 +137,9 @@ export async function deleteEnv(env: PythonEnvironment, progress: Progress<{ mes
             complete: () => resolve()
         });
     });
-    if (!env.envName || !env.path) {
-        // Can't tell if an environment was deleted if we don't have the name or path.
-        return;
-    }
     // // Check if it was deleted successfully.
-    if (await fs.pathExists(env.envPath || env.path)) {
-        throw new Error(`Failed to delete conda environment ${getEnvDisplayInfo(env)}, folder still exists ${getDisplayPath(env.envPath || env.path)} `);
+    if (await fs.pathExists(env.path)) {
+        throw new Error(`Failed to delete conda environment ${getEnvDisplayInfo(env)}, folder still exists ${getDisplayPath(env.path)} `);
     }
 }
 
@@ -113,52 +151,25 @@ export async function getCondaVersion() {
     return conda.getInfo().catch((ex) => traceError('Failed to get conda info', ex));
 }
 
-export async function getPyEnvVersion() {
-    const dir = getPyenvDir();
-    const changelogFile = path.join(dir, 'CHANGELOG.md');
-    try {
-        if (await fs.pathExists(changelogFile)) {
-            const textFile = await fs.readFile(changelogFile, 'utf-8');
-            const versionStart = textFile.indexOf('## Release ');
-            if (versionStart === -1) {
-                traceError(
-                    `Failed to identify pyenv version from ${changelogFile}, with text ${textFile.substring(0, 100)} `,
-                );
-                return;
-            }
-
-            const start = versionStart + '## Release '.length;
-            const verionLines = textFile
-                .substring(start, start + 20)
-                .splitLines()
-                .map((line) => line.trim())
-                .filter((line) => line.length);
-
-            return verionLines.length === 0 ? '' : verionLines[0];
-        }
-    } catch (ex) {
-        traceError('Failed to get pyenv version', ex);
-    }
-}
-
-function getLatestCondaPythonVersion(environments: PythonEnvironment[]) {
+function getLatestCondaPythonVersion(environments: readonly Environment[]) {
     let maxMajorVersion = 3;
     let maxMinorVersion = 9;
     environments
-        .filter(env => env.envType === EnvironmentType.Conda)
+        .filter(env => isCondaEnvironment(env))
         .forEach(env => {
             if (!env.version?.major || env.version?.major < maxMajorVersion) {
                 // Noop,
             } else if (env.version?.major > maxMajorVersion) {
                 maxMajorVersion = env.version?.major;
-                maxMinorVersion = env.version?.minor;
-            } else if (env.version?.minor > maxMinorVersion) {
-                maxMinorVersion = env.version?.minor;
+                maxMinorVersion = env.version?.minor || 0;
+            } else if ((env.version?.minor || 0) > maxMinorVersion) {
+                maxMinorVersion = env.version?.minor || 0;
             }
         });
     return `${maxMajorVersion}.${maxMinorVersion}`;
 }
-export async function createEnv(environments: PythonEnvironment[], refreshUntilAvailable: RefreshUntilNewEnvIsAvailable) {
+export async function createEnv() {
+    const api = await PythonExtension.api();
     const conda = await Conda.getConda();
     if (!conda) {
         traceError(`Conda not found`);
@@ -167,7 +178,7 @@ export async function createEnv(environments: PythonEnvironment[], refreshUntilA
 
     type StateType = { name: string, pythonVersion?: string };
     const initialState: StateType = { name: '' };
-    const availableMaxPythonVersion = getLatestCondaPythonVersion(environments);
+    const availableMaxPythonVersion = getLatestCondaPythonVersion(api.environments.known);
     const selectVersion = async (input: MultiStepInput<StateType>, state: StateType): Promise<InputStep<StateType> | void> => {
         const version = await input.showInputBox({
             title: 'Select Python Version',
@@ -205,14 +216,14 @@ export async function createEnv(environments: PythonEnvironment[], refreshUntilA
         return;
     }
     await window.withProgress({ location: ProgressLocation.Notification, cancellable: true, title: `Creating environment '${initialState.name.trim()}'` }, async (uiProgress, token) => {
-        await createEnvWithInfo(uiProgress, token, initialState.name.trim(), conda.command, refreshUntilAvailable, initialState.pythonVersion);
+        await createEnvWithInfo(uiProgress, token, initialState.name.trim(), conda.command, initialState.pythonVersion);
     });
 }
 
 async function createEnvWithInfo(progress: Progress<{
     message?: string | undefined;
     increment?: number | undefined;
-}>, token: CancellationToken, name: string, condaFile: string, refreshUntilAvailable: RefreshUntilNewEnvIsAvailable, pythonVersion = '3.9') {
+}>, token: CancellationToken, name: string, condaFile: string, pythonVersion = '3.9') {
     try {
         const isMicroMamba = condaFile.includes('.micromamba');
         progress.report({ message: `Creating environment ${name}` });
@@ -243,11 +254,12 @@ async function createEnvWithInfo(progress: Progress<{
         }
 
         progress.report({ message: 'Waiting for environment to be detected' });
-        await refreshUntilAvailable({ name, type: EnvironmentType.Conda });
+        const api = await PythonExtension.api();
+        await api.environments.refreshEnvironments();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (ex: any) {
+    } catch (ex) {
         traceError(`Failed to create environment`, ex);
-        window.showErrorMessage(`Failed to create environment ${name}, ${ex.toString()}`);
+        window.showErrorMessage(`Failed to create environment ${name}, ${ex}`);
     }
 
 }

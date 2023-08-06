@@ -1,6 +1,21 @@
-import { QuickPickItem } from 'vscode';
+import { Environment, PythonExtension } from '@vscode/python-extension';
+import { Disposable, QuickPickItem, Uri } from 'vscode';
 import { Resource } from '../../common/types';
 import { PythonEnvironment } from '../../pythonEnvironments/info';
+
+export const IInterpreterSelector = Symbol('IInterpreterSelector');
+export interface IInterpreterSelector extends Disposable {
+    getRecommendedSuggestion(
+        suggestions: IInterpreterQuickPickItem[],
+        resource: Resource,
+    ): IInterpreterQuickPickItem | undefined;
+    getSuggestions(api: PythonExtension, resource: Resource, useFullDisplayName?: boolean): IInterpreterQuickPickItem[];
+    suggestionToQuickPickItem(
+        suggestion: Environment,
+        workspaceUri?: Uri | undefined,
+        useDetailedName?: boolean,
+    ): IInterpreterQuickPickItem;
+}
 
 export interface IInterpreterQuickPickItem extends QuickPickItem {
     path: string;
@@ -10,7 +25,7 @@ export interface IInterpreterQuickPickItem extends QuickPickItem {
      * @type {PythonEnvironment}
      * @memberof IInterpreterQuickPickItem
      */
-    interpreter: PythonEnvironment;
+    interpreter: Environment;
 }
 
 export interface ISpecialQuickPickItem extends QuickPickItem {
@@ -20,6 +35,7 @@ export interface ISpecialQuickPickItem extends QuickPickItem {
 export const IInterpreterComparer = Symbol('IInterpreterComparer');
 export interface IInterpreterComparer {
     compare(a: PythonEnvironment, b: PythonEnvironment): number;
+    compareV2(a: Environment, b: Environment): number;
     getRecommended(interpreters: PythonEnvironment[], resource: Resource): PythonEnvironment | undefined;
 }
 
@@ -47,7 +63,7 @@ export const IInterpreterQuickPick = Symbol('IInterpreterQuickPick');
 export interface IInterpreterQuickPick {
     getInterpreterViaQuickPick(
         workspace: Resource,
-        filter?: (i: PythonEnvironment) => boolean,
+        filter?: (i: Environment) => boolean,
         params?: InterpreterQuickPickParams,
     ): Promise<string | undefined>;
 }

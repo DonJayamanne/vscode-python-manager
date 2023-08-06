@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-import { CancellationToken, ProgressLocation, WorkspaceFolder } from 'vscode';
+import { pathExists } from 'fs-extra';
+import { CancellationToken, ProgressLocation, QuickInputButtons, Uri, WorkspaceFolder, window } from 'vscode';
 import * as path from 'path';
 import { Commands, PVSC_EXTENSION_ID } from '../../../common/constants';
 import { traceError, traceLog } from '../../../logging';
@@ -29,7 +30,7 @@ import {
     CreateEnvironmentProvider,
 } from '../proposed.createEnvApis';
 
-function generateCommandArgs(version?: string, options?: CreateEnvironmentOptions): string[] {
+function generateCommandArgs(version?: string, options?: CreateEnvironmentOptions, name?: string): string[] {
     let addGitIgnore = true;
     let installPackages = true;
     if (options) {
@@ -41,6 +42,9 @@ function generateCommandArgs(version?: string, options?: CreateEnvironmentOption
 
     if (addGitIgnore) {
         command.push('--git-ignore');
+    }
+    if (name && (name || '').trim().length) {
+        command.push('--name', name.toCommandArgumentForPythonExt());
     }
 
     if (installPackages) {
@@ -202,6 +206,49 @@ async function createEnvironment(options?: CreateEnvironmentOptions): Promise<Cr
     );
     workspaceStep.next = versionStep;
 
+    let name = '.conda';
+    const nameStep = new MultiStepNode(
+        versionStep,
+        async () =>
+            new Promise<MultiStepAction>((resolve) => {
+                const input = window.createInputBox();
+                input.title = 'Environment Name';
+                input.value = '.conda';
+                input.buttons = [QuickInputButtons.Back];
+                input.onDidTriggerButton((e) => {
+                    if (e === QuickInputButtons.Back) {
+                        resolve(MultiStepAction.Back);
+                        input.hide();
+                    }
+                });
+                input.onDidHide(() => {
+                    resolve(MultiStepAction.Cancel);
+                    input.hide();
+                });
+                input.onDidAccept(async () => {
+                    const envName = input.value.trim();
+                    if (!envName.length) {
+                        input.validationMessage = 'Enter a valid name';
+                        return;
+                    }
+                    if (workspace) {
+                        const fullPath = Uri.joinPath(workspace.uri, envName);
+                        if (await pathExists(fullPath.fsPath)) {
+                            input.validationMessage = 'Environment with the same name already exists';
+                            return;
+                        }
+                    }
+                    name = envName;
+                    input.validationMessage = '';
+                    resolve(MultiStepAction.Continue);
+                    input.hide();
+                });
+                input.show();
+            }),
+        undefined,
+    );
+    versionStep.next = nameStep;
+
     const action = await MultiStepNode.run(workspaceStep);
     if (action === MultiStepAction.Back || action === MultiStepAction.Cancel) {
         throw action;
@@ -233,7 +280,7 @@ async function createEnvironment(options?: CreateEnvironmentOptions): Promise<Cr
                     envPath = await createCondaEnv(
                         workspace,
                         getExecutableCommand(conda),
-                        generateCommandArgs(version, options),
+                        generateCommandArgs(version, options, name),
                         progress,
                         token,
                     );

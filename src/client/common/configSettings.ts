@@ -1,8 +1,8 @@
 'use strict';
 
 // eslint-disable-next-line camelcase
+import { PythonExtension } from '@vscode/python-extension';
 import * as path from 'path';
-import * as fs from 'fs';
 import {
     ConfigurationChangeEvent,
     ConfigurationTarget,
@@ -16,11 +16,9 @@ import './extensions';
 import { IWorkspaceService } from './application/types';
 import { WorkspaceService } from './application/workspace';
 import { DEFAULT_INTERPRETER_SETTING, isTestExecution } from './constants';
-import { IInterpreterPathService, IPythonSettings, ITerminalSettings, Resource } from './types';
+import { IPythonSettings, ITerminalSettings, Resource } from './types';
 import { debounceSync } from './utils/decorators';
 import { SystemVariables } from './variables/systemVariables';
-import { getOSType, OSType } from './utils/platform';
-import { isWindows } from './platform/platformService';
 
 const untildify = require('untildify');
 
@@ -31,19 +29,10 @@ export class PythonSettings implements IPythonSettings {
     }
 
     public get pythonPath(): string {
-        return this._pythonPath;
-    }
-
-    public set pythonPath(value: string) {
-        if (this._pythonPath === value) {
-            return;
-        }
-        // Add support for specifying just the directory where the python executable will be located.
-        // E.g. virtual directory name.
         try {
-            this._pythonPath = this.getPythonExecutable(value);
-        } catch (ex) {
-            this._pythonPath = value;
+            return this.api.environments.getActiveEnvironmentPath(this.workspaceRoot).path;
+        } catch {
+            return 'python';
         }
     }
 
@@ -58,7 +47,7 @@ export class PythonSettings implements IPythonSettings {
         // Add support for specifying just the directory where the python executable will be located.
         // E.g. virtual directory name.
         try {
-            this._defaultInterpreterPath = this.getPythonExecutable(value);
+            this._defaultInterpreterPath = this.api.environments.getActiveEnvironmentPath().path;
         } catch (ex) {
             this._defaultInterpreterPath = value;
         }
@@ -69,7 +58,6 @@ export class PythonSettings implements IPythonSettings {
     public envFile = '';
 
     public venvPath = '';
-
 
     public venvFolders: string[] = [];
 
@@ -101,37 +89,27 @@ export class PythonSettings implements IPythonSettings {
 
     private disposables: Disposable[] = [];
 
-    private _pythonPath = 'python';
-
     private _defaultInterpreterPath = '';
 
     private readonly workspace: IWorkspaceService;
 
-    constructor(
-        workspaceFolder: Resource,
-        workspace?: IWorkspaceService,
-        private readonly interpreterPathService?: IInterpreterPathService,
-    ) {
+    constructor(private readonly api: PythonExtension, workspaceFolder: Resource, workspace?: IWorkspaceService) {
         this.workspace = workspace || new WorkspaceService();
         this.workspaceRoot = workspaceFolder;
         this.initialize();
     }
 
     public static getInstance(
+        api: PythonExtension,
         resource: Uri | undefined,
         workspace?: IWorkspaceService,
-        interpreterPathService?: IInterpreterPathService,
     ): PythonSettings {
         workspace = workspace || new WorkspaceService();
         const workspaceFolderUri = PythonSettings.getSettingsUriAndTarget(resource, workspace).uri;
         const workspaceFolderKey = workspaceFolderUri ? workspaceFolderUri.fsPath : '';
 
         if (!PythonSettings.pythonSettings.has(workspaceFolderKey)) {
-            const settings = new PythonSettings(
-                workspaceFolderUri,
-                workspace,
-                interpreterPathService,
-            );
+            const settings = new PythonSettings(api, workspaceFolderUri, workspace);
             PythonSettings.pythonSettings.set(workspaceFolderKey, settings);
         }
 
@@ -192,8 +170,6 @@ export class PythonSettings implements IPythonSettings {
         const workspaceRoot = this.workspaceRoot?.fsPath;
         const systemVariables: SystemVariables = new SystemVariables(undefined, workspaceRoot, this.workspace);
 
-        this.pythonPath = this.getPythonPath(pythonSettings, systemVariables, workspaceRoot);
-
         const defaultInterpreterPath = systemVariables.resolveAny(pythonSettings.get<string>('defaultInterpreterPath'));
         this.defaultInterpreterPath = defaultInterpreterPath || DEFAULT_INTERPRETER_SETTING;
 
@@ -235,11 +211,6 @@ export class PythonSettings implements IPythonSettings {
         }
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    protected getPythonExecutable(pythonPath: string): string {
-        return getPythonExecutable(pythonPath);
-    }
-
     protected onWorkspaceFoldersChanged(): void {
         // If an activated workspace folder was removed, delete its key
         const workspaceKeys = this.workspace.workspaceFolders!.map((workspaceFolder) => workspaceFolder.uri.fsPath);
@@ -275,13 +246,6 @@ export class PythonSettings implements IPythonSettings {
                 }
             }),
         );
-        if (this.interpreterPathService) {
-            this.disposables.push(
-                this.interpreterPathService.onDidChange(() => {
-                    this.onDidChanged();
-                }),
-            );
-        }
 
         const initialConfig = this.workspace.getConfiguration('python', this.workspaceRoot);
         if (initialConfig) {
@@ -292,28 +256,6 @@ export class PythonSettings implements IPythonSettings {
     @debounceSync(1)
     protected debounceChangeNotification(event?: ConfigurationChangeEvent): void {
         this.changed.fire(event);
-    }
-
-    private getPythonPath(
-        pythonSettings: WorkspaceConfiguration,
-        systemVariables: SystemVariables,
-        workspaceRoot: string | undefined,
-    ) {
-        /**
-         * Note that while calling `IExperimentsManager.inExperiment()`, we assume `IExperimentsManager.activate()` is already called.
-         * That's not true here, as this method is often called in the constructor,which runs before `.activate()` methods.
-         * But we can still use it here for this particular experiment. Reason being that this experiment only changes
-         * `pythonPath` setting, and I've checked that `pythonPath` setting is not accessed anywhere in the constructor.
-         */
-        // DON: Experiment
-        const inExperimentDeprecatePythonPath = true;
-        // Use the interpreter path service if in the experiment otherwise use the normal settings
-        this.pythonPath = systemVariables.resolveAny(
-            inExperimentDeprecatePythonPath && this.interpreterPathService
-                ? this.interpreterPathService.get(this.workspaceRoot)
-                : pythonSettings.get<string>('pythonPath'),
-        )!;
-        return getAbsolutePath(this.pythonPath, workspaceRoot);
     }
 }
 
@@ -330,64 +272,4 @@ function getAbsolutePath(pathToCheck: string, rootDir: string | undefined): stri
         return pathToCheck;
     }
     return path.isAbsolute(pathToCheck) ? pathToCheck : path.resolve(rootDir, pathToCheck);
-}
-
-function getPythonExecutable(pythonPath: string): string {
-    pythonPath = untildify(pythonPath) as string;
-
-    // If only 'python'.
-    if (
-        pythonPath === 'python' ||
-        pythonPath.indexOf(path.sep) === -1 ||
-        path.basename(pythonPath) === path.dirname(pythonPath)
-    ) {
-        return pythonPath;
-    }
-
-    if (isValidPythonPath(pythonPath)) {
-        return pythonPath;
-    }
-    // Keep python right on top, for backwards compatibility.
-
-    const KnownPythonExecutables = [
-        'python',
-        'python4',
-        'python3.6',
-        'python3.5',
-        'python3',
-        'python2.7',
-        'python2',
-        'python3.7',
-        'python3.8',
-        'python3.9',
-    ];
-
-    for (let executableName of KnownPythonExecutables) {
-        // Suffix with 'python' for linux and 'osx', and 'python.exe' for 'windows'.
-        if (isWindows()) {
-            executableName = `${executableName}.exe`;
-            if (isValidPythonPath(path.join(pythonPath, executableName))) {
-                return path.join(pythonPath, executableName);
-            }
-            if (isValidPythonPath(path.join(pythonPath, 'Scripts', executableName))) {
-                return path.join(pythonPath, 'Scripts', executableName);
-            }
-        } else {
-            if (isValidPythonPath(path.join(pythonPath, executableName))) {
-                return path.join(pythonPath, executableName);
-            }
-            if (isValidPythonPath(path.join(pythonPath, 'bin', executableName))) {
-                return path.join(pythonPath, 'bin', executableName);
-            }
-        }
-    }
-
-    return pythonPath;
-}
-
-function isValidPythonPath(pythonPath: string): boolean {
-    return (
-        fs.existsSync(pythonPath) &&
-        path.basename(getOSType() === OSType.Windows ? pythonPath.toLowerCase() : pythonPath).startsWith('python')
-    );
 }

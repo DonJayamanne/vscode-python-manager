@@ -41,7 +41,7 @@ class CreateEnvironmentProviders {
     }
 }
 
-const _createEnvironmentProviders: CreateEnvironmentProviders = new CreateEnvironmentProviders();
+export const _createEnvironmentProviders: CreateEnvironmentProviders = new CreateEnvironmentProviders();
 
 export function registerCreateEnvironmentProvider(provider: CreateEnvironmentProvider): Disposable {
     _createEnvironmentProviders.add(provider);

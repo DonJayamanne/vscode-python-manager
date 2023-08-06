@@ -47,6 +47,7 @@
             }
         ],
         "no-useless-constructor": "off",
+        "consistent-return": "off",
         "@typescript-eslint/no-useless-constructor": "error",
         "@typescript-eslint/no-var-requires": "off",
 
@@ -64,6 +65,7 @@
         ],
         "import/prefer-default-export": "off",
         "linebreak-style": "off",
+        "lines-between-class-members": "off",
         "no-await-in-loop": "off",
         "no-console": "off",
         "no-control-regex": "off",

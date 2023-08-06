@@ -9,9 +9,9 @@ import { EnvironmentActivationService } from './activation/service';
 import { TerminalEnvVarCollectionService } from './activation/terminalEnvVarCollectionService';
 import { IEnvironmentActivationService } from './activation/types';
 import { EnvironmentTypeComparer } from './configuration/environmentTypeComparer';
-import {
-    IInterpreterComparer,
-} from './configuration/types';
+import { SetInterpreterCommand } from './configuration/interpreterSelector/commands/setInterpreter';
+import { InterpreterSelector } from './configuration/interpreterSelector/interpreterSelector';
+import { IInterpreterComparer, IInterpreterQuickPick, IInterpreterSelector } from './configuration/types';
 import { IInterpreterHelper, IInterpreterService } from './contracts';
 import { InterpreterHelper } from './helpers';
 import { InterpreterService } from './interpreterService';
@@ -26,6 +26,8 @@ import { InterpreterService } from './interpreterService';
 function registerInterpreterTypes(serviceManager: IServiceManager): void {
     serviceManager.addSingleton<IInterpreterService>(IInterpreterService, InterpreterService);
 
+    serviceManager.addSingleton<IInterpreterSelector>(IInterpreterSelector, InterpreterSelector);
+    serviceManager.addSingleton<IInterpreterQuickPick>(IInterpreterQuickPick, SetInterpreterCommand);
     serviceManager.addSingleton<IInterpreterHelper>(IInterpreterHelper, InterpreterHelper);
 
     serviceManager.addSingleton<IInterpreterComparer>(IInterpreterComparer, EnvironmentTypeComparer);

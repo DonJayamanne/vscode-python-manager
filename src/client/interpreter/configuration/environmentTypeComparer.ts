@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+import { Environment } from '@vscode/python-extension';
 import { injectable, inject } from 'inversify';
 import { Resource } from '../../common/types';
 import { Architecture } from '../../common/utils/platform';
@@ -10,6 +11,7 @@ import { EnvironmentType, PythonEnvironment, virtualEnvTypes } from '../../pytho
 import { PythonVersion } from '../../pythonEnvironments/info/pythonVersion';
 import { IInterpreterHelper } from '../contracts';
 import { IInterpreterComparer } from './types';
+import { getEnvironmentType, isCondaEnvironment, isNonPythonCondaEnvironment } from '../../../environments/utils';
 
 export enum EnvLocationHeuristic {
     /**
@@ -78,6 +80,61 @@ export class EnvironmentTypeComparer implements IInterpreterComparer {
         // Check alphabetical order.
         const nameA = getSortName(a, this.interpreterHelper);
         const nameB = getSortName(b, this.interpreterHelper);
+        if (nameA === nameB) {
+            return 0;
+        }
+
+        return nameA > nameB ? 1 : -1;
+    }
+
+    /**
+     * Compare 2 Python environments, sorting them by assumed usefulness.
+     * Return 0 if both environments are equal, -1 if a should be closer to the beginning of the list, or 1 if a comes after b.
+     *
+     * The comparison guidelines are:
+     * 1. Local environments first (same path as the workspace root);
+     * 2. Global environments next (anything not local), with conda environments at a lower priority, and "base" being last;
+     * 3. Globally-installed interpreters (/usr/bin/python3, Microsoft Store).
+     *
+     * Always sort with newest version of Python first within each subgroup.
+     */
+    public compareV2(a: Environment, b: Environment): number {
+        if (isNonPythonCondaEnvironment(a)) {
+            return 1;
+        }
+        if (isNonPythonCondaEnvironment(b)) {
+            return -1;
+        }
+        // // Check environment location.
+        // const envLocationComparison = compareEnvironmentLocation(a, b, this.workspaceFolderPath);
+        // if (envLocationComparison !== 0) {
+        //     return envLocationComparison;
+        // }
+
+        // Check environment type.
+        const envTypeComparison = compareEnvironmentTypeV2(a, b);
+        if (envTypeComparison !== 0) {
+            return envTypeComparison;
+        }
+
+        // Check Python version.
+        const versionComparison = comparePythonVersionDescendingV2(a, b);
+        if (versionComparison !== 0) {
+            return versionComparison;
+        }
+
+        // If we have the "base" Conda env, put it last in its Python version subgroup.
+        if (isBaseCondaEnvironmentV2(a)) {
+            return 1;
+        }
+
+        if (isBaseCondaEnvironmentV2(b)) {
+            return -1;
+        }
+
+        // Check alphabetical order.
+        const nameA = getSortNameV2(a, this.interpreterHelper);
+        const nameB = getSortNameV2(b, this.interpreterHelper);
         if (nameA === nameB) {
             return 0;
         }
@@ -154,6 +211,41 @@ function getSortName(info: PythonEnvironment, interpreterHelper: IInterpreterHel
     return `${sortNameParts.join(' ')} ${envSuffix}`.trim();
 }
 
+function getSortNameV2(info: Environment, interpreterHelper: IInterpreterHelper): string {
+    const sortNameParts: string[] = [];
+    const envSuffixParts: string[] = [];
+
+    // Sort order for interpreters is:
+    // * Version
+    // * Architecture
+    // * Interpreter Type
+    // * Environment name
+    if (info.version?.sysVersion) {
+        sortNameParts.push(info.version.sysVersion);
+    }
+    if (info.executable.bitness) {
+        sortNameParts.push(info.executable.bitness);
+    }
+    // if (info.companyDisplayName && info.companyDisplayName.length > 0) {
+    // sortNameParts.push(info.companyDisplayName.trim());
+    // } else {
+    // sortNameParts.push('Python');
+    // }
+
+    // if (info.envType) {
+    const name = interpreterHelper.getInterpreterTypeDisplayName(getEnvironmentType(info));
+    if (name) {
+        envSuffixParts.push(name);
+    }
+    // }
+    if (info.environment?.name) {
+        envSuffixParts.push(info.environment?.name);
+    }
+
+    const envSuffix = envSuffixParts.length === 0 ? '' : `(${envSuffixParts.join(': ')})`;
+    return `${sortNameParts.join(' ')} ${envSuffix}`.trim();
+}
+
 function getArchitectureSortName(arch?: Architecture) {
     // Strings are choosen keeping in mind that 64-bit gets preferred over 32-bit.
     switch (arch) {
@@ -170,6 +262,12 @@ function isBaseCondaEnvironment(environment: PythonEnvironment): boolean {
     return (
         environment.envType === EnvironmentType.Conda &&
         (environment.envName === 'base' || environment.envName === 'miniconda')
+    );
+}
+function isBaseCondaEnvironmentV2(environment: Environment): boolean {
+    return (
+        isCondaEnvironment(environment) &&
+        (environment.environment?.name === 'base' || environment.environment?.name === 'miniconda')
     );
 }
 
@@ -205,6 +303,31 @@ function comparePythonVersionDescending(a: PythonVersion | undefined, b: PythonV
 
     return a.major > b.major ? -1 : 1;
 }
+function comparePythonVersionDescendingV2(a: Environment | undefined, b: Environment | undefined): number {
+    if (!a) {
+        return 1;
+    }
+
+    if (!b) {
+        return -1;
+    }
+
+    if (a.version?.sysVersion === b.version?.sysVersion) {
+        return 0;
+    }
+
+    if (a.version?.major === b.version?.major) {
+        if (a.version?.minor === b.version?.minor) {
+            if (a.version?.micro === b.version?.micro) {
+                return (a.version?.release?.serial || 0) > (b.version?.release?.serial || 0) ? -1 : 1;
+            }
+            return (a.version?.micro || 0) > (b.version?.micro || 0) ? -1 : 1;
+        }
+        return (a.version?.minor || 0) > (b.version?.minor || 0) ? -1 : 1;
+    }
+
+    return (a.version?.major || 0) > (b.version?.major || 0) ? -1 : 1;
+}
 
 /**
  * Compare 2 environment locations: return 0 if they are the same, -1 if a comes before b, 1 otherwise.
@@ -236,6 +359,13 @@ export function getEnvLocationHeuristic(environment: PythonEnvironment, workspac
 function compareEnvironmentType(a: PythonEnvironment, b: PythonEnvironment): number {
     const envTypeByPriority = getPrioritizedEnvironmentType();
     return Math.sign(envTypeByPriority.indexOf(a.envType) - envTypeByPriority.indexOf(b.envType));
+}
+
+function compareEnvironmentTypeV2(a: Environment, b: Environment): number {
+    const envTypeByPriority = getPrioritizedEnvironmentType();
+    return Math.sign(
+        envTypeByPriority.indexOf(getEnvironmentType(a)) - envTypeByPriority.indexOf(getEnvironmentType(b)),
+    );
 }
 
 function getPrioritizedEnvironmentType(): EnvironmentType[] {

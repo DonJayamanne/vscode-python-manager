@@ -3,14 +3,12 @@
 
 'use strict';
 
-
 import { registerTypes as activationRegisterTypes } from './activation/serviceRegistry';
 import { IExtensionActivationManager } from './activation/types';
 
 import { IApplicationEnvironment } from './common/application/types';
 import { UseProposedApi } from './common/constants';
-import { IConfigurationService, IInterpreterPathService, IPathUtils } from './common/types';
-import { IInterpreterService } from './interpreter/contracts';
+import { IConfigurationService } from './common/types';
 import { registerTypes as registerEnvironmentTypes } from '../environments/serviceRegistry';
 
 // components
@@ -54,11 +52,7 @@ export function activateFeatures(ext: ExtensionState, _components: Components): 
     const interpreterQuickPick: IInterpreterQuickPick = ext.legacyIOC.serviceContainer.get<IInterpreterQuickPick>(
         IInterpreterQuickPick,
     );
-    const interpreterPathService: IInterpreterPathService = ext.legacyIOC.serviceContainer.get<IInterpreterPathService>(
-        IInterpreterPathService,
-    );
-    const pathUtils = ext.legacyIOC.serviceContainer.get<IPathUtils>(IPathUtils);
-    registerAllCreateEnvironmentFeatures(ext.disposables, interpreterQuickPick, interpreterPathService, pathUtils);
+    registerAllCreateEnvironmentFeatures(ext.disposables, interpreterQuickPick);
 }
 
 /// //////////////////////////
@@ -81,11 +75,6 @@ async function activateLegacy(ext: ExtensionState): Promise<ActivationResult> {
     serviceManager.addSingletonInstance<boolean>(UseProposedApi, enableProposedApi);
     // Feature specific registrations.
     activationRegisterTypes(serviceManager);
-
-    // "initialize" "services"
-
-    const interpreterManager = serviceContainer.get<IInterpreterService>(IInterpreterService);
-    interpreterManager.initialize();
 
     // "activate" everything else
     const manager = serviceContainer.get<IExtensionActivationManager>(IExtensionActivationManager);

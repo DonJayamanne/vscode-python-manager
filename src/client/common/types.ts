@@ -18,6 +18,7 @@ import {
     OutputChannel,
 } from 'vscode';
 import { EnvironmentVariables } from './variables/types';
+import { PythonExtension } from '@vscode/python-extension';
 
 export interface IDisposable {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,11 +26,11 @@ export interface IDisposable {
 }
 
 export const ILogOutputChannel = Symbol('ILogOutputChannel');
-export interface ILogOutputChannel extends LogOutputChannel { }
+export interface ILogOutputChannel extends LogOutputChannel {}
 export const ITestOutputChannel = Symbol('ITestOutputChannel');
-export interface ITestOutputChannel extends OutputChannel { }
+export interface ITestOutputChannel extends OutputChannel {}
 export const IDocumentSymbolProvider = Symbol('IDocumentSymbolProvider');
-export interface IDocumentSymbolProvider extends DocumentSymbolProvider { }
+export interface IDocumentSymbolProvider extends DocumentSymbolProvider {}
 export const IsWindows = Symbol('IS_WINDOWS');
 export const IDisposableRegistry = Symbol('IDisposableRegistry');
 export type IDisposableRegistry = IDisposable[];
@@ -113,7 +114,6 @@ export enum Product {
     python = 29,
 }
 
-
 // TODO: Drop IPathUtils in favor of IFileSystemPathUtils.
 // See https://github.com/microsoft/vscode-python/issues/8542.
 export const IPathUtils = Symbol('IPathUtils');
@@ -174,6 +174,7 @@ export const IConfigurationService = Symbol('IConfigurationService');
 export interface IConfigurationService {
     readonly onDidChange: Event<ConfigurationChangeEvent | undefined>;
     getSettings(resource?: Uri): IPythonSettings;
+    initialize(api: PythonExtension): void;
 }
 
 /**
@@ -212,8 +213,7 @@ export type DownloadOptions = {
 };
 
 export const IExtensionContext = Symbol('ExtensionContext');
-export interface IExtensionContext extends ExtensionContext { }
-
+export interface IExtensionContext extends ExtensionContext {}
 
 export const IEditorUtils = Symbol('IEditorUtils');
 export interface IEditorUtils {
