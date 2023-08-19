@@ -16,12 +16,15 @@ export class InterpreterService implements Disposable, IInterpreterService {
 
     private readonly didChangeInterpreterEmitter = new EventEmitter<Uri | undefined>();
 
-    constructor(
-        @inject(IComponentAdapter) private readonly pyenvs: IComponentAdapter,
-    ) {
-        PythonExtension.api().then(api => api.environments.onDidChangeActiveEnvironmentPath(e => {
-            this.didChangeInterpreterEmitter.fire(e.resource?.uri)
-        }))
+    constructor(@inject(IComponentAdapter) private readonly pyenvs: IComponentAdapter) {
+        PythonExtension.api().then((api) =>
+            api.environments.onDidChangeActiveEnvironmentPath((e) => {
+                this.didChangeInterpreterEmitter.fire(e.resource?.uri);
+            }),
+        );
+    }
+    public getInterpreters(resource?: Uri): PythonEnvironment[] {
+        return this.pyenvs.getInterpreters(resource);
     }
 
     public dispose(): void {

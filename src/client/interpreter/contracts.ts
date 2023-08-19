@@ -72,6 +72,10 @@ export interface ICondaService {
 
 export const IInterpreterService = Symbol('IInterpreterService');
 export interface IInterpreterService {
+    /**
+     * @deprecated
+     */
+    getInterpreters(resource?: Uri): PythonEnvironment[];
     onDidChangeInterpreter: Event<Uri | undefined>;
     getActiveInterpreter(resource?: Uri): Promise<PythonEnvironment | undefined>;
     getInterpreterDetails(pythonPath: string, resoure?: Uri): Promise<undefined | PythonEnvironment>;

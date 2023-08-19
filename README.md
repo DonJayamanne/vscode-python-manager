@@ -11,8 +11,9 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 * View installed packages.
 
 ## Coming soon
-* Viewing dependency tree of the python packages within an environment.
 * Managing packages (install, update, etc)
+* Managing Poetry, PipEnv, PyEnv environments and corresponding packages
+* Managing workspace Environment
 
 
 <img src=https://raw.githubusercontent.com/DonJayamanne/vscode-python-manager/environmentManager/resources/demo.gif>

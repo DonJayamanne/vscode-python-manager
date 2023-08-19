@@ -2,14 +2,7 @@
 // Licensed under the MIT License.
 
 import { inject, injectable } from 'inversify';
-import {
-    ProgressOptions,
-    ProgressLocation,
-    MarkdownString,
-    WorkspaceFolder,
-    EnvironmentVariableCollection,
-    EnvironmentVariableScope,
-} from 'vscode';
+import { ProgressOptions, ProgressLocation, MarkdownString, WorkspaceFolder } from 'vscode';
 import { IExtensionActivationService } from '../../activation/types';
 import { IApplicationShell, IApplicationEnvironment, IWorkspaceService } from '../../common/application/types';
 import { IPlatformService } from '../../common/platform/types';
@@ -23,10 +16,11 @@ import {
 } from '../../common/types';
 import { Deferred, createDeferred } from '../../common/utils/async';
 import { Interpreters } from '../../common/utils/localize';
-import { traceDecoratorVerbose, traceVerbose, traceWarn } from '../../logging';
+import { traceDecoratorVerbose, traceVerbose } from '../../logging';
 import { IInterpreterService } from '../contracts';
 import { defaultShells } from './service';
-import { IEnvironmentActivationService } from './types';
+import { IEnvironmentActivationService, ITerminalEnvVarCollectionService } from './types';
+import { EnvironmentVariables } from '../../common/variables/types';
 
 @injectable()
 export class TerminalEnvVarCollectionService implements IExtensionActivationService, ITerminalEnvVarCollectionService {
@@ -55,7 +49,11 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
         @inject(IWorkspaceService) private workspaceService: IWorkspaceService,
         @inject(IConfigurationService) private readonly configurationService: IConfigurationService,
         @inject(IPathUtils) private readonly pathUtils: IPathUtils,
-    ) { }
+    ) {}
+
+    isTerminalPromptSetCorrectly(_resource?: Resource): boolean {
+        return true;
+    }
 
     public async activate(resource: Resource): Promise<void> {
         // if (!inTerminalEnvVarExperiment(this.experimentService)) {
@@ -125,7 +123,6 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
                 await this._applyCollection(resource, defaultShell?.shell);
                 return;
             }
-            await this.trackTerminalPrompt(shell, resource, env);
             this.processEnvVars = undefined;
             return;
         }
@@ -165,11 +162,7 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
         const displayPath = this.pathUtils.getDisplayName(settings.pythonPath, workspaceFolder?.uri.fsPath);
         const description = new MarkdownString(`${Interpreters.activateTerminalDescription} \`${displayPath}\``);
         envVarCollection.description = description;
-
-        await this.trackTerminalPrompt(shell, resource, env);
     }
-
-    private isPromptSet = new Map<number | undefined, boolean>();
 
     private getWorkspaceFolder(resource: Resource): WorkspaceFolder | undefined {
         let workspaceFolder = this.workspaceService.getWorkspaceFolder(resource);
