@@ -33,14 +33,12 @@ function fireStartedEvent(options?: CreateEnvironmentOptions): void {
 }
 
 function fireExitedEvent(result?: CreateEnvironmentResult, options?: CreateEnvironmentOptions, error?: Error): void {
-    onCreateEnvironmentExitedEvent.fire({
-        options,
-        workspaceFolder: result?.workspaceFolder,
-        path: result?.path,
-        action: result?.action,
-        error: error || result?.error,
-    });
     startedEventCount -= 1;
+    if (result) {
+        onCreateEnvironmentExitedEvent.fire({ options, ...result });
+    } else if (error) {
+        onCreateEnvironmentExitedEvent.fire({ options, error });
+    }
 }
 
 export function getCreationEvents(): {
@@ -198,5 +196,8 @@ export async function handleCreateEnvironmentCommand(
         }
     }
 
-    return result;
+    if (result) {
+        return Object.freeze(result);
+    }
+    return undefined;
 }
