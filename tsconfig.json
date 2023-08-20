@@ -28,7 +28,6 @@
         "removeComments": true
     },
     "exclude": [
-        "node_modules",
         ".vscode-test",
         ".vscode test",
         "src/server/node_modules",
@@ -38,7 +37,6 @@
         "src/smoke",
         "build",
         "out",
-        "tmp",
-        "pythonExtensionApi"
+        "tmp"
     ]
 }

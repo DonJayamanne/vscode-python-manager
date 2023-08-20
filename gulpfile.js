@@ -39,21 +39,8 @@ gulp.task('compileCore', (done) => {
         .on('finish', () => (failed ? done(new Error('TypeScript compilation errors')) : done()));
 });
 
-const apiTsProject = ts.createProject('./pythonExtensionApi/tsconfig.json', { typescript });
 
-gulp.task('compileApi', (done) => {
-    let failed = false;
-    apiTsProject
-        .src()
-        .pipe(apiTsProject())
-        .on('error', () => {
-            failed = true;
-        })
-        .js.pipe(gulp.dest('./pythonExtensionApi/out'))
-        .on('finish', () => (failed ? done(new Error('TypeScript compilation errors')) : done()));
-});
-
-gulp.task('compile', gulp.series('compileCore', 'compileApi'));
+gulp.task('compile', gulp.series('compileCore'));
 
 gulp.task('precommit', (done) => run({ exitOnError: true, mode: 'staged' }, done));
 
@@ -78,7 +65,7 @@ async function buildWebPackForDevOrProduction(configFile, configNameForProductio
     if (configNameForProductionBuilds) {
         await buildWebPack(configNameForProductionBuilds, ['--config', configFile], webpackEnv);
     } else {
-        await spawnAsync('npm', ['run', 'webpack', '--', '--config', configFile, '--mode', 'production'], webpackEnv);
+        await spawnAsync('npm', ['run', 'webpack', '--', '--config', configFile, '--mode', 'development'], webpackEnv);
     }
 }
 gulp.task('webpack', async () => {
@@ -159,7 +146,7 @@ async function buildWebPack(webpackConfigName, args, env) {
     const allowedWarnings = getAllowedWarningsForWebPack(webpackConfigName).map((item) => item.toLowerCase());
     const stdOut = await spawnAsync(
         'npm',
-        ['run', 'webpack', '--', ...args, ...['--mode', 'production', '--devtool', 'source-map']],
+        ['run', 'webpack', '--', ...args, ...['--mode', 'development', '--devtool', 'source-map']],
         env,
     );
     const stdOutLines = stdOut
