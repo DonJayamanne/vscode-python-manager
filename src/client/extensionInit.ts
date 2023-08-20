@@ -48,7 +48,7 @@ export function initializeGlobals(
     serviceManager.addSingletonInstance<Memento>(IMemento, context.workspaceState, WORKSPACE_MEMENTO);
     serviceManager.addSingletonInstance<IExtensionContext>(IExtensionContext, context);
 
-    const standardOutputChannel = window.createOutputChannel('Python Environments');
+    const standardOutputChannel = window.createOutputChannel('Python Environments (logging)');
     context.subscriptions.push(registerLogger(new OutputChannelLogger(standardOutputChannel)));
 
     return {

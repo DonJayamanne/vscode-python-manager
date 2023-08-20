@@ -10,27 +10,37 @@ import { activate as activatePythonInstallation } from './installPython';
 import { activate as activateEnvDeletion } from './envDeletion';
 import { activate as activateEnvCreation } from './envCreation';
 import { activate as activateSetActiveInterpreter } from './activeInterpreter';
-import { PythonEnvironmentTreeDataProvider } from './view/treeDataProvider';
+import { PythonEnvironmentsTreeDataProvider } from './view/environmentsTreeDataProvider';
+import { WorkspaceFoldersTreeDataProvider } from './view/foldersTreeDataProvider';
+import { registerCommands } from './view/commands';
 
 export function registerTypes(serviceManager: IServiceManager, context: ExtensionContext): void {
     PythonExtension.api().then((api) => {
-        const treeDataProvider = new PythonEnvironmentTreeDataProvider(context, api, serviceManager);
-        // treeDataProvider.
+        const treeDataProvider = new PythonEnvironmentsTreeDataProvider(context, api, serviceManager);
         context.subscriptions.push(treeDataProvider);
-        context.subscriptions.push(
-            commands.registerCommand('python.envManager.refresh', (forceRefresh = true) =>
-                treeDataProvider.refresh(forceRefresh),
-            ),
-        );
-        context.subscriptions.push(
-            commands.registerCommand('python.envManager.refreshing', (forceRefresh = true) =>
-                treeDataProvider.refresh(forceRefresh),
-            ),
-        );
         window.createTreeView('pythonEnvironments', { treeDataProvider });
+
+        const workspaceFoldersTreeDataProvider = new WorkspaceFoldersTreeDataProvider(context, api);
+        context.subscriptions.push(workspaceFoldersTreeDataProvider);
+        window.createTreeView('workspaceEnvironments', { treeDataProvider: workspaceFoldersTreeDataProvider });
+        context.subscriptions.push(
+            commands.registerCommand('python.envManager.refresh', (forceRefresh = true) => {
+                treeDataProvider.refresh(forceRefresh);
+                workspaceFoldersTreeDataProvider.refresh(forceRefresh);
+            }
+            ),
+        );
+        context.subscriptions.push(
+            commands.registerCommand('python.envManager.refreshing', (forceRefresh = true) => {
+                treeDataProvider.refresh(forceRefresh);
+                workspaceFoldersTreeDataProvider.refresh(forceRefresh);
+            },
+            ),
+        );
     });
     activate(context, serviceManager);
     activateMamba(context);
+    registerCommands(context);
     activatePythonInstallation(context);
     activateEnvCreation(context);
     activateEnvDeletion(context);

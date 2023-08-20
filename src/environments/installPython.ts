@@ -5,7 +5,7 @@ import { getCondaVersion } from './tools/conda';
 import { getDisplayPath } from './helpers';
 import { MICROMAMBA_DIR, MICROMAMBA_EXE } from './micromamba/constants';
 import { installMicromamba } from './micromamba/install';
-import { refreshUntilNewEnvIsAvailable } from './view/treeDataProvider';
+import { refreshUntilNewEnvIsAvailable } from './view/environmentsTreeDataProvider';
 
 export function activate(context: ExtensionContext) {
     context.subscriptions.push(

@@ -3,17 +3,19 @@
 A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) that provides the ability to via and manage all of your Python environments & packages from a single place.
 
 ## Features
+* Viewing Environments specific to a Workspace
 * Viewing all of your Python environments grouped by their type (Conda, PyEnv, etc)
 * Creating a terminal with the environment activated.
 * Create/delete Conda and Virtual Environments.
 * Install Python along with Conda using [Micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html)
 * Set a Python environment as the active workspace Python interpreter as used by the [Python Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
 * View installed packages.
+* Updating outdated packages (Conda and Pip)
 
 ## Coming soon
-* Managing packages (install, update, etc)
+* Search and install new Packages (search Conda and PyPi registries)
+* Updating outdated packages (Poetry)
 * Managing Poetry, PipEnv, PyEnv environments and corresponding packages
-* Managing workspace Environment
 
 
 <img src=https://raw.githubusercontent.com/DonJayamanne/vscode-python-manager/environmentManager/resources/demo.gif>

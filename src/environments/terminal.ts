@@ -16,6 +16,8 @@ import { createTempFile, getDisplayPath } from './helpers';
 import { traceError } from '../client/logging';
 import { IComponentAdapter } from '../client/interpreter/contracts';
 import { getEnvironmentType, isNonPythonCondaEnvironment } from './utils';
+import { EnvironmentWrapper } from './view/types';
+import { ActiveWorkspaceEnvironment } from './view/foldersTreeDataProvider';
 
 type WorkspaceFolderUri = string;
 const defaultEnvVars = new Map<WorkspaceFolderUri, NodeJS.ProcessEnv>();
@@ -32,93 +34,99 @@ export function activate(context: ExtensionContext, iocContainer: IServiceContai
 
     let api: PythonExtension;
     context.subscriptions.push(
-        commands.registerCommand('python.envManager.openInTerminal', async ({ id }: { id: string }) => {
-            const helper = iocContainer.get<ITerminalHelper>(ITerminalHelper);
-            const pyenvs = iocContainer.get<IComponentAdapter>(IComponentAdapter);
-            // const activatedEnvVars = iocContainrer.get<IEnvironmentActivationService>(IEnvironmentActivationService);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            // const env = { ...process.env } as any;
-            api = api || (await PythonExtension.api());
-            const env = api.environments.known.find((e) => e.id === id);
-            if (!env) {
-                return;
-            }
-            const interpreter = await pyenvs.getInterpreterDetails(env.path);
-            if (!interpreter || (!interpreter?.sysPrefix && isNonPythonCondaEnvironment(env))) {
-                // interpreter = undefined;
-                return;
-            }
-            const cwd = await pickFolder();
-            // const condaEnvVars =
-            //     (await env.envType) === EnvironmentType.Conda
-            //         ? activatedEnvVars.getActivatedEnvironmentVariables(e.resource, e.env)
-            //         : undefined;
-            // if (e.env.envType === EnvironmentType.Conda && condaEnvVars) {
-            //     const name = e.env.envName ? `Python ${e.env.envName}` : e.env.displayName;
-            //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            //     const terminal = window.createTerminal({ hideFromUser: true, name, env: condaEnvVars as any, cwd });
-            //     terminal.show(false);
-            // } else {
-            // const pathName = getSearchPathEnvVarNames()[0];
-            // env[pathName] = `${path.dirname(e.env.path)}${path.delimiter}${env[pathName]}`;
-            const name = env.environment?.name
-                ? `Python ${env.environment.name}`
-                : getDisplayPath(path.dirname(env.environment?.folderUri?.fsPath || env.path));
-            let terminal = window.createTerminal({ hideFromUser: true, name, cwd });
-            const shell = helper.identifyTerminalShell(terminal);
-            const activationCommands = await helper.getEnvironmentActivationCommands(shell, cwd, interpreter);
-            if (Array.isArray(activationCommands) && activationCommands.length > 0) {
-                terminal.show(false);
-                for (const command of activationCommands || []) {
-                    terminal.sendText(command);
-                    // No point sleeping if we have just one command.
-                    if (activationCommands.length > 1) {
+        commands.registerCommand(
+            'python.envManager.openInTerminal',
+            async (options: EnvironmentWrapper | ActiveWorkspaceEnvironment) => {
+                let id = '';
+                if (options instanceof ActiveWorkspaceEnvironment) {
+                    id = options.asNode()?.env.id || '';
+                } else {
+                    id = options.id;
+                }
+                const helper = iocContainer.get<ITerminalHelper>(ITerminalHelper);
+                const pyenvs = iocContainer.get<IComponentAdapter>(IComponentAdapter);
+                api = api || (await PythonExtension.api());
+                const env = api.environments.known.find((e) => e.id === id);
+                if (!env) {
+                    return;
+                }
+                const interpreter = await pyenvs.getInterpreterDetails(env.path);
+                if (!interpreter || (!interpreter?.sysPrefix && isNonPythonCondaEnvironment(env))) {
+                    // interpreter = undefined;
+                    return;
+                }
+                const cwd = await pickFolder();
+                // const condaEnvVars =
+                //     (await env.envType) === EnvironmentType.Conda
+                //         ? activatedEnvVars.getActivatedEnvironmentVariables(e.resource, e.env)
+                //         : undefined;
+                // if (e.env.envType === EnvironmentType.Conda && condaEnvVars) {
+                //     const name = e.env.envName ? `Python ${e.env.envName}` : e.env.displayName;
+                //     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                //     const terminal = window.createTerminal({ hideFromUser: true, name, env: condaEnvVars as any, cwd });
+                //     terminal.show(false);
+                // } else {
+                // const pathName = getSearchPathEnvVarNames()[0];
+                // env[pathName] = `${path.dirname(e.env.path)}${path.delimiter}${env[pathName]}`;
+                const name = env.environment?.name
+                    ? `Python ${env.environment.name}`
+                    : getDisplayPath(path.dirname(env.environment?.folderUri?.fsPath || env.path));
+                let terminal = window.createTerminal({ hideFromUser: true, name, cwd });
+                const shell = helper.identifyTerminalShell(terminal);
+                const activationCommands = await helper.getEnvironmentActivationCommands(shell, cwd, interpreter);
+                if (Array.isArray(activationCommands) && activationCommands.length > 0) {
+                    terminal.show(false);
+                    for (const command of activationCommands || []) {
+                        terminal.sendText(command);
+                        // No point sleeping if we have just one command.
+                        if (activationCommands.length > 1) {
+                            await sleep(1_000);
+                        }
+                    }
+                    return;
+                }
+                if (isWsl) {
+                    // Using strict will not work, we'll need to update the Path variable with the terminal.
+                    const exportScript = await getPathScript(shell, env.path, context);
+                    terminal.dispose();
+                    terminal = window.createTerminal({
+                        hideFromUser: true,
+                        name,
+                        cwd,
+                    });
+                    if (exportScript) {
+                        terminal.sendText(exportScript);
                         await sleep(1_000);
                     }
+                    terminal.show(false);
+                    return;
                 }
-                return;
-            }
-            if (isWsl) {
-                // Using strict will not work, we'll need to update the Path variable with the terminal.
-                const exportScript = await getPathScript(shell, env.path, context);
-                terminal.dispose();
-                terminal = window.createTerminal({
-                    hideFromUser: true,
-                    name,
-                    cwd,
-                });
-                if (exportScript) {
-                    terminal.sendText(exportScript);
-                    await sleep(1_000);
+                try {
+                    const [baseEnvVars, symlinkDir] = await Promise.all([
+                        getEmptyTerminalVariables(terminal, shell, cwd?.fsPath),
+                        createSymlink(shell, env.path, context),
+                    ]);
+                    terminal.dispose();
+                    const envVars = { ...baseEnvVars };
+                    // Windows seems to support both.
+                    ['Path', 'PATH'].forEach((pathVarName) => {
+                        if (typeof envVars[pathVarName] === 'string') {
+                            envVars[pathVarName] = `${symlinkDir}${path.delimiter}${envVars[pathVarName]}`;
+                        }
+                    });
+                    const terminalCustomEnvVars = window.createTerminal({
+                        hideFromUser: false,
+                        name,
+                        cwd,
+                        env: envVars,
+                        strictEnv: true,
+                    });
+                    terminalCustomEnvVars.show(false);
+                } catch (ex) {
+                    console.error(`Failed to create terminal for ${getEnvironmentType(env)}:${env.path}`, ex);
                 }
-                terminal.show(false);
-                return;
-            }
-            try {
-                const [baseEnvVars, symlinkDir] = await Promise.all([
-                    getEmptyTerminalVariables(terminal, shell, cwd?.fsPath),
-                    createSymlink(shell, env.path, context),
-                ]);
-                terminal.dispose();
-                const envVars = { ...baseEnvVars };
-                // Windows seems to support both.
-                ['Path', 'PATH'].forEach((pathVarName) => {
-                    if (typeof envVars[pathVarName] === 'string') {
-                        envVars[pathVarName] = `${symlinkDir}${path.delimiter}${envVars[pathVarName]}`;
-                    }
-                });
-                const terminalCustomEnvVars = window.createTerminal({
-                    hideFromUser: false,
-                    name,
-                    cwd,
-                    env: envVars,
-                    strictEnv: true,
-                });
-                terminalCustomEnvVars.show(false);
-            } catch (ex) {
-                console.error(`Failed to create terminal for ${getEnvironmentType(env)}:${env.path}`, ex);
-            }
-        }),
+            },
+        ),
     );
 }
 let cachedEnvVariables: Promise<undefined | NodeJS.ProcessEnv>;

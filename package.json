@@ -92,7 +92,7 @@
             {
                 "command": "python.envManager.setAsActiveInterpreter",
                 "title": "Set as active workspace interpreter",
-                "icon": "$(thumbsup)"
+                "icon": "$(star)"
             },
             {
                 "command": "python.envManager.installPython",
@@ -124,59 +124,59 @@
             "view/title": [
                 {
                     "command": "python.envManager.refresh",
-                    "when": "view == pythonEnvironments && !isRefreshingPythonEnvironments",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && !isRefreshingPythonEnvironments",
                     "group": "navigation"
                 },
                 {
                     "command": "python.envManager.refreshing",
-                    "when": "view == pythonEnvironments && isRefreshingPythonEnvironments",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && isRefreshingPythonEnvironments",
                     "group": "navigation"
                 },
                 {
                     "command": "python.envManager.installPython",
-                    "when": "view == pythonEnvironments && python.envManager.pythonIsNotInstalled",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && python.envManager.pythonIsNotInstalled",
                     "group": "navigation"
                 }
             ],
             "view/item/context": [
                 {
                     "command": "python.envManager.create",
-                    "when": "view == pythonEnvironments && viewItem =~ /^envType:canCreate:/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^envType:canCreate:/",
                     "group": "inline"
                 },
                 {
                     "command": "python.envManager.delete",
-                    "when": "view == pythonEnvironments && viewItem =~ /^env:canBeDeleted:/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^env:canBeDeleted:/",
                     "group": "inline@2"
                 },
                 {
                     "command": "python.envManager.openInTerminal",
-                    "when": "view == pythonEnvironments && viewItem =~ /^env:/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^env:/ && !(viewItem =~/isNonPythonCondaEnvironment/)",
                     "group": "inline@2"
                 },
                 {
                     "command": "python.envManager.setAsActiveInterpreter",
-                    "when": "view == pythonEnvironments && viewItem =~ /^env:/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^env:/ && !(viewItem =~/isActiveEnvironment/) && !(viewItem =~/isNonPythonCondaEnvironment/) && workspaceFolderCount >= 1",
                     "group": "inline@3"
                 },
                 {
                     "command": "python.envManager.updatePackage",
-                    "when": "view == pythonEnvironments && viewItem =~ /^package:outdated/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^package:outdated/",
                     "group": "inline@3"
                 },
                 {
                     "command": "python.envManager.uninstallPackage",
-                    "when": "view == pythonEnvironments && viewItem =~ /^package:/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^package:/",
                     "group": "inline@3"
                 },
                 {
                     "command": "python.envManager.refreshPackages",
-                    "when": "view == pythonEnvironments && viewItem =~ /^packageContainer/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/ && !(viewItem =~/isNonPythonCondaEnvironment/)",
                     "group": "inline@3"
                 },
                 {
                     "command": "python.envManager.updateAllPackages",
-                    "when": "view == pythonEnvironments && viewItem =~ /^packageContainer/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/ && !(viewItem =~/isNonPythonCondaEnvironment/)",
                     "group": "inline@3"
                 }
             ]
@@ -194,8 +194,15 @@
         "views": {
             "package-explorer": [
                 {
+                    "id": "workspaceEnvironments",
+                    "name": "Workspace Environments",
+                    "icon": "resources/logo.svg",
+                    "contextualTitle": "Workspace Environment",
+                    "when": "workspaceFolderCount >= 1"
+                },
+                {
                     "id": "pythonEnvironments",
-                    "name": "Environments",
+                    "name": "Global Environments",
                     "icon": "resources/logo.svg",
                     "contextualTitle": "Environment Manager"
                 }
