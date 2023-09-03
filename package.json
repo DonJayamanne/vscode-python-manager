@@ -210,6 +210,7 @@
         }
     },
     "scripts": {
+        "postinstall": "vscode-dts main",
         "package": "gulp clean && gulp prePublishBundle && vsce package -o python-env-manager.vsix",
         "prePublish": "gulp clean && gulp prePublishNonBundle",
         "compile": "tsc -watch -p ./",
@@ -248,7 +249,7 @@
     "dependencies": {
         "@iarna/toml": "^2.2.5",
         "@vscode/codicons": "0.0.26",
-        "@vscode/python-extension": "^1.0.1",
+        "@vscode/python-extension": "^1.0.4",
         "arch": "^2.1.0",
         "diff-match-patch": "^1.0.0",
         "fs-extra": "^10.0.1",
@@ -303,7 +304,6 @@
         "@types/tar": "^6.1.1",
         "@types/tmp": "^0.0.33",
         "@types/uuid": "^8.3.4",
-        "@types/vscode": "^1.81.0",
         "@types/which": "^2.0.1",
         "@types/winreg": "^1.2.30",
         "@types/xml2js": "^0.4.2",
@@ -354,6 +354,7 @@
         "typemoq": "^2.1.0",
         "typescript": "4.5.5",
         "uuid": "^8.3.2",
+        "vscode-dts": "^0.3.3",
         "webpack": "^5.76.0",
         "webpack-bundle-analyzer": "^4.5.0",
         "webpack-cli": "^4.9.2",

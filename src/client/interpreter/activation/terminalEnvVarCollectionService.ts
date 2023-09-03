@@ -1,8 +1,16 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+import * as path from 'path';
 import { inject, injectable } from 'inversify';
-import { ProgressOptions, ProgressLocation, MarkdownString, WorkspaceFolder } from 'vscode';
+import {
+    ProgressOptions,
+    ProgressLocation,
+    MarkdownString,
+    WorkspaceFolder,
+    GlobalEnvironmentVariableCollection,
+    EnvironmentVariableScope,
+} from 'vscode';
 import { IExtensionActivationService } from '../../activation/types';
 import { IApplicationShell, IApplicationEnvironment, IWorkspaceService } from '../../common/application/types';
 import { IPlatformService } from '../../common/platform/types';
@@ -16,11 +24,14 @@ import {
 } from '../../common/types';
 import { Deferred, createDeferred } from '../../common/utils/async';
 import { Interpreters } from '../../common/utils/localize';
-import { traceDecoratorVerbose, traceVerbose } from '../../logging';
+import { traceDecoratorVerbose, traceError, traceVerbose } from '../../logging';
 import { IInterpreterService } from '../contracts';
 import { defaultShells } from './service';
 import { IEnvironmentActivationService, ITerminalEnvVarCollectionService } from './types';
+import { PythonEnvironment } from '../../pythonEnvironments/info';
 import { EnvironmentVariables } from '../../common/variables/types';
+import { TerminalShellType } from '../../common/terminal/types';
+import { OSType } from '../../common/utils/platform';
 
 @injectable()
 export class TerminalEnvVarCollectionService implements IExtensionActivationService, ITerminalEnvVarCollectionService {
@@ -28,6 +39,15 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
         untrustedWorkspace: false,
         virtualWorkspace: false,
     };
+
+    /**
+     * Prompts for these shells cannot be set reliably using variables
+     */
+    private noPromptVariableShells = [
+        TerminalShellType.powershell,
+        TerminalShellType.powershellCore,
+        TerminalShellType.fish,
+    ];
 
     private deferred: Deferred<void> | undefined;
 
@@ -51,57 +71,42 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
         @inject(IPathUtils) private readonly pathUtils: IPathUtils,
     ) {}
 
-    isTerminalPromptSetCorrectly(_resource?: Resource): boolean {
-        return true;
-    }
-
     public async activate(resource: Resource): Promise<void> {
-        // if (!inTerminalEnvVarExperiment(this.experimentService)) {
-        //     this.context.environmentVariableCollection.clear();
-        //     await this.handleMicroVenv(resource);
-        //     if (!this.registeredOnce) {
-        //         this.interpreterService.onDidChangeInterpreter(
-        //             async (r) => {
-        //                 await this.handleMicroVenv(r);
-        //             },
-        //             this,
-        //             this.disposables,
-        //         );
-        //         this.registeredOnce = true;
-        //     }
-        //     return;
-        // }
-        if (!this.registeredOnce) {
-            this.interpreterService.onDidChangeInterpreter(
-                async (r) => {
-                    this.showProgress();
-                    await this._applyCollection(r).ignoreErrors();
-                    this.hideProgress();
-                },
-                this,
-                this.disposables,
-            );
-            this.applicationEnvironment.onDidChangeShell(
-                async (shell: string) => {
-                    this.showProgress();
-                    this.processEnvVars = undefined;
-                    // Pass in the shell where known instead of relying on the application environment, because of bug
-                    // on VSCode: https://github.com/microsoft/vscode/issues/160694
-                    await this._applyCollection(undefined, shell).ignoreErrors();
-                    this.hideProgress();
-                },
-                this,
-                this.disposables,
-            );
-            this.registeredOnce = true;
+        try {
+            if (!this.registeredOnce) {
+                this.interpreterService.onDidChangeInterpreter(
+                    async (r) => {
+                        this.showProgress();
+                        await this._applyCollection(r).ignoreErrors();
+                        this.hideProgress();
+                    },
+                    this,
+                    this.disposables,
+                );
+                this.applicationEnvironment.onDidChangeShell(
+                    async (shell: string) => {
+                        this.showProgress();
+                        this.processEnvVars = undefined;
+                        // Pass in the shell where known instead of relying on the application environment, because of bug
+                        // on VSCode: https://github.com/microsoft/vscode/issues/160694
+                        await this._applyCollection(undefined, shell).ignoreErrors();
+                        this.hideProgress();
+                    },
+                    this,
+                    this.disposables,
+                );
+                this.registeredOnce = true;
+            }
+            this._applyCollection(resource).ignoreErrors();
+        } catch (ex) {
+            traceError(`Activating terminal env collection failed`, ex);
         }
-        this._applyCollection(resource).ignoreErrors();
     }
 
     public async _applyCollection(resource: Resource, shell = this.applicationEnvironment.shell): Promise<void> {
         const workspaceFolder = this.getWorkspaceFolder(resource);
         const settings = this.configurationService.getSettings(resource);
-        const envVarCollection = this.context.getEnvironmentVariableCollection({ workspaceFolder });
+        const envVarCollection = this.getEnvironmentVariableCollection({ workspaceFolder });
         // Clear any previously set env vars from collection
         envVarCollection.clear();
         if (!settings.terminal.activateEnvironment) {
@@ -123,6 +128,7 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
                 await this._applyCollection(resource, defaultShell?.shell);
                 return;
             }
+            await this.trackTerminalPrompt(shell, resource, env);
             this.processEnvVars = undefined;
             return;
         }
@@ -133,6 +139,10 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
             );
         }
         const processEnv = this.processEnvVars;
+
+        // PS1 in some cases is a shell variable (not an env variable) so "env" might not contain it, calculate it in that case.
+        env.PS1 = await this.getPS1(shell, resource, env);
+
         Object.keys(env).forEach((key) => {
             if (shouldSkip(key)) {
                 return;
@@ -162,6 +172,86 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
         const displayPath = this.pathUtils.getDisplayName(settings.pythonPath, workspaceFolder?.uri.fsPath);
         const description = new MarkdownString(`${Interpreters.activateTerminalDescription} \`${displayPath}\``);
         envVarCollection.description = description;
+
+        await this.trackTerminalPrompt(shell, resource, env);
+    }
+
+    private isPromptSet = new Map<number | undefined, boolean>();
+
+    // eslint-disable-next-line class-methods-use-this
+    public isTerminalPromptSetCorrectly(resource?: Resource): boolean {
+        const workspaceFolder = this.getWorkspaceFolder(resource);
+        return !!this.isPromptSet.get(workspaceFolder?.index);
+    }
+
+    /**
+     * Call this once we know terminal prompt is set correctly for terminal owned by this resource.
+     */
+    private terminalPromptIsCorrect(resource: Resource) {
+        const key = this.getWorkspaceFolder(resource)?.index;
+        this.isPromptSet.set(key, true);
+    }
+
+    private terminalPromptIsUnknown(resource: Resource) {
+        const key = this.getWorkspaceFolder(resource)?.index;
+        this.isPromptSet.delete(key);
+    }
+
+    /**
+     * Tracks whether prompt for terminal was correctly set.
+     */
+    private async trackTerminalPrompt(shell: string, resource: Resource, env: EnvironmentVariables | undefined) {
+        this.terminalPromptIsUnknown(resource);
+        if (!env) {
+            this.terminalPromptIsCorrect(resource);
+            return;
+        }
+        const customShellType = identifyShellFromShellPath(shell);
+        if (this.noPromptVariableShells.includes(customShellType)) {
+            return;
+        }
+        if (this.platform.osType !== OSType.Windows) {
+            // These shells are expected to set PS1 variable for terminal prompt for virtual/conda environments.
+            const interpreter = await this.interpreterService.getActiveInterpreter(resource);
+            const shouldPS1BeSet = interpreter?.type !== undefined;
+            if (shouldPS1BeSet && !env.PS1) {
+                // PS1 should be set but no PS1 was set.
+                return;
+            }
+            const config = this.workspaceService
+                .getConfiguration('terminal')
+                .get<boolean>('integrated.shellIntegration.enabled');
+            if (!config) {
+                traceVerbose('PS1 is not set when shell integration is disabled.');
+                return;
+            }
+        }
+        this.terminalPromptIsCorrect(resource);
+    }
+
+    private async getPS1(shell: string, resource: Resource, env: EnvironmentVariables) {
+        if (env.PS1) {
+            return env.PS1;
+        }
+        const customShellType = identifyShellFromShellPath(shell);
+        if (this.noPromptVariableShells.includes(customShellType)) {
+            return undefined;
+        }
+        if (this.platform.osType !== OSType.Windows) {
+            // These shells are expected to set PS1 variable for terminal prompt for virtual/conda environments.
+            const interpreter = await this.interpreterService.getActiveInterpreter(resource);
+            const shouldPS1BeSet = interpreter?.type !== undefined;
+            if (shouldPS1BeSet && !env.PS1) {
+                // PS1 should be set but no PS1 was set.
+                return getPromptForEnv(interpreter);
+            }
+        }
+        return undefined;
+    }
+
+    private getEnvironmentVariableCollection(scope: EnvironmentVariableScope = {}) {
+        const envVarCollection = this.context.environmentVariableCollection as GlobalEnvironmentVariableCollection;
+        return envVarCollection.getScoped(scope);
     }
 
     private getWorkspaceFolder(resource: Resource): WorkspaceFolder | undefined {
@@ -205,4 +295,17 @@ export class TerminalEnvVarCollectionService implements IExtensionActivationServ
 
 function shouldSkip(env: string) {
     return ['_', 'SHLVL'].includes(env);
+}
+
+function getPromptForEnv(interpreter: PythonEnvironment | undefined) {
+    if (!interpreter) {
+        return undefined;
+    }
+    if (interpreter.envName) {
+        return `(${interpreter.envName}) `;
+    }
+    if (interpreter.envPath) {
+        return `(${path.basename(interpreter.envPath)}) `;
+    }
+    return undefined;
 }

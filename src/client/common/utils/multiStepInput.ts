@@ -105,7 +105,7 @@ export class MultiStepInput<S> implements IMultiStepInput<S> {
 
     private steps: InputStep<S>[] = [];
 
-    constructor(private readonly shell: IApplicationShell) {}
+    constructor(private readonly shell: IApplicationShell) { }
 
     public run(start: InputStep<S>, state: S): Promise<void> {
         return this.stepThrough(start, state);
@@ -131,7 +131,13 @@ export class MultiStepInput<S> implements IMultiStepInput<S> {
         const input = this.shell.createQuickPick<T>();
         input.title = title;
         input.step = step;
-        input.sortByLabel = sortByLabel || false;
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (input as any).sortByLabel = sortByLabel || false;
+        }
+        catch {
+            //
+        }
         input.totalSteps = totalSteps;
         input.placeholder = placeholder;
         input.ignoreFocusOut = true;
@@ -307,7 +313,7 @@ export interface IMultiStepInputFactory {
 }
 @injectable()
 export class MultiStepInputFactory {
-    constructor(@inject(IApplicationShell) private readonly shell: IApplicationShell) {}
+    constructor(@inject(IApplicationShell) private readonly shell: IApplicationShell) { }
 
     public create<S>(): IMultiStepInput<S> {
         return new MultiStepInput<S>(this.shell);
