@@ -4,21 +4,22 @@
 
 import { injectable } from 'inversify';
 import { PythonExtension, ResolvedEnvironment } from '@vscode/python-extension';
-import {
-    Disposable,
-    EventEmitter,
-    ThemeIcon,
-    TreeDataProvider,
-    TreeItem,
-    TreeItemCollapsibleState,
-} from 'vscode';
+import { Disposable, EventEmitter, ThemeIcon, TreeDataProvider, TreeItem, TreeItemCollapsibleState } from 'vscode';
 import { CondaInfo } from '../../client/pythonEnvironments/common/environmentManagers/conda';
 import { EnvironmentType } from '../../client/pythonEnvironments/info';
 import { createDeferred } from '../../client/common/utils/async';
 import { getOutdatedPackages, getPackages } from '../packages';
 import { canEnvBeCreated } from '../envCreation';
 import { traceError } from '../../client/logging';
-import { PythonEnvironmentTreeNode, EnvironmentWrapper, Package, PackageWrapper, EnvironmentInformationWrapper, EnvironmentInfo, getEnvironmentInfo } from './types';
+import {
+    PythonEnvironmentTreeNode,
+    EnvironmentWrapper,
+    Package,
+    PackageWrapper,
+    EnvironmentInformationWrapper,
+    EnvironmentInfo,
+    getEnvironmentInfo,
+} from './types';
 import { disposeAll } from '../../client/common/utils/resourceLifecycle';
 import { isNonPythonCondaEnvironment } from '../utils';
 
@@ -31,19 +32,22 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Pytho
     private readonly outdatedPackages = new Map<string, Map<string, string>>();
     private readonly _changeTreeData = new EventEmitter<PythonEnvironmentTreeNode | void | undefined | null>();
     public readonly onDidChangeTreeData = this._changeTreeData.event;
-    constructor(private readonly api: PythonExtension,) { }
+    constructor(private readonly api: PythonExtension) {}
 
     public dispose() {
         this._changeTreeData.dispose();
         disposeAll(this.disposables);
     }
 
-    async getTreeItem(element: PythonEnvironmentTreeNode): Promise<TreeItem> {
+    async getTreeItem(
+        element: PythonEnvironmentTreeNode,
+        defaultState: TreeItemCollapsibleState = TreeItemCollapsibleState.Collapsed,
+    ): Promise<TreeItem> {
         if (element instanceof EnvironmentWrapper) {
-            return element.asTreeItem(this.api);
+            return element.asTreeItem(this.api, defaultState);
         }
         if (element instanceof EnvironmentInformationWrapper) {
-            const tree = new TreeItem('Info', TreeItemCollapsibleState.Collapsed);
+            const tree = new TreeItem('Info', defaultState);
             tree.contextValue = 'envInfo';
             tree.iconPath = new ThemeIcon('info');
             return tree;
@@ -52,11 +56,11 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Pytho
             return element.asTreeItem();
         }
         if (element instanceof PackageWrapper) {
-            const tree = new TreeItem('Packages', TreeItemCollapsibleState.Collapsed);
+            const tree = new TreeItem('Packages', defaultState);
 
             tree.contextValue = 'packageContainer';
             if (isNonPythonCondaEnvironment(element.env)) {
-                tree.contextValue = `${tree.contextValue.trim()}:isNonPythonCondaEnvironment`
+                tree.contextValue = `${tree.contextValue.trim()}:isNonPythonCondaEnvironment`;
             }
 
             tree.iconPath = new ThemeIcon('package');
@@ -69,7 +73,7 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Pytho
             tree.tooltip = element.value;
             return tree;
         }
-        const tree = new TreeItem(element, TreeItemCollapsibleState.Collapsed);
+        const tree = new TreeItem(element, defaultState);
         const createContext = canEnvBeCreated(element) ? 'canCreate' : 'cannotCreate';
         tree.contextValue = `envType:${createContext}:${element} `;
         if (element === EnvironmentType.Conda && this.condaInfo) {
@@ -133,8 +137,6 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Pytho
                 return packages;
             });
         }
-        debugger;
-        return []
+        return [];
     }
-
 }

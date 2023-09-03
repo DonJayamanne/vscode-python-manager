@@ -180,6 +180,73 @@ export class Poetry {
         return undefined;
     }
 
+    public static async getVersion(cwd: string): Promise<string | undefined> {
+        // First thing this method awaits on should be poetry command execution, hence perform all operations
+        // before that synchronously.
+
+        traceVerbose(`Getting poetry version`);
+        // Produce a list of candidate binaries to be probed by exec'ing them.
+        function* getCandidates() {
+            try {
+                const customPoetryPath = getPythonSetting<string>('poetryPath');
+                if (customPoetryPath && customPoetryPath !== 'poetry') {
+                    // If user has specified a custom poetry path, use it first.
+                    yield customPoetryPath;
+                }
+            } catch (ex) {
+                traceError(`Failed to get poetry setting`, ex);
+            }
+            // Check unqualified filename, in case it's on PATH.
+            yield 'poetry';
+            const home = getUserHomeDir();
+            if (home) {
+                const defaultPoetryPath = path.join(home, '.poetry', 'bin', 'poetry');
+                if (pathExistsSync(defaultPoetryPath)) {
+                    yield defaultPoetryPath;
+                }
+            }
+        }
+
+        // Probe the candidates, and pick the first one that exists and does what we need.
+        for (const poetryPath of getCandidates()) {
+            traceVerbose(`Getting poetry version for ${poetryPath}`);
+            const poetry = new Poetry(poetryPath, cwd);
+            const version = await poetry.getVersionCached();
+            if (version) {
+                traceVerbose(`Found version ${version} for ${poetryPath}`);
+                return version;
+            }
+            traceVerbose(`Failed to find poetry for ${poetryPath}`);
+        }
+
+        // Didn't find anything.
+        traceVerbose(`No poetry binary found for ${cwd}`);
+        return undefined;
+    }
+
+    /**
+     * Method created to facilitate caching. The caching decorator uses function arguments as cache key,
+     * so pass in cwd on which we need to cache.
+     */
+    @cache(30_000, true, 10_000)
+    private async getVersionCached(): Promise<string | undefined> {
+        const result = await this.safeShellExecute(`${this.command} --version`);
+        if (!result) {
+            return undefined;
+        }
+        const lines = splitLines(result.stdout).map((line) => {
+            if (line.startsWith('Poetry (version')) {
+                line = line.substring('Poetry (version'.length).trim();
+            }
+            if (line.endsWith(')')) {
+                line = line.substring(0, line.length - 1).trim();
+            }
+            return line;
+        });
+
+        return lines.length ? lines[0] : '';
+    }
+
     /**
      * Retrieves list of Python environments known to this poetry for this working directory.
      * Returns `undefined` if we failed to spawn because the binary doesn't exist or isn't on PATH,
@@ -278,7 +345,7 @@ export class Poetry {
         }
     }
 
-    private async safeShellExecute(command: string, logVerbose = false) {
+    public async safeShellExecute(command: string, logVerbose = false) {
         // It has been observed that commands related to conda or poetry binary take upto 10-15 seconds unlike
         // python binaries. So have a large timeout.
         const stopWatch = new StopWatch();

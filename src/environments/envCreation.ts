@@ -24,7 +24,14 @@ export function canEnvBeCreated(envType: EnvironmentType) {
 
 export function activate(context: ExtensionContext) {
     context.subscriptions.push(
-        commands.registerCommand('python.envManager.create', async (type: EnvironmentType) => {
+        commands.registerCommand('python.envManager.create', async (type?: EnvironmentType) => {
+            if (!type) {
+                // Called from the Add button on top of the Workspace Environments view.
+                // We're trying to create an environment for a workspace folder of any type.
+                // Let python handle this.
+                await commands.executeCommand('python.createEnvironment');
+                return commands.executeCommand('python.envManager.refresh');
+            }
             if (!canEnvBeCreated(type)) {
                 traceError(`Environment '${type}' cannot be created`);
                 return;

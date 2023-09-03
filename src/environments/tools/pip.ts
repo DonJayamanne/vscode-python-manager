@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
 
-import { Environment } from '@vscode/python-extension';
+import { Environment, ResolvedEnvironment } from '@vscode/python-extension';
 import { traceError, traceVerbose } from '../../client/logging';
 import { exec } from '../../client/pythonEnvironments/common/externalDependencies';
 import { EnvironmentType } from '../../client/pythonEnvironments/info';
@@ -9,10 +9,10 @@ import { getEnvironmentType } from '../utils';
 export interface PipPackageInfo {
     name: string;
     version: string;
-};
+}
 export interface OutdatedPipPackageInfo extends PipPackageInfo {
     latest_version: string;
-};
+}
 export async function getPipPackages(env: Environment) {
     if (getEnvironmentType(env) === EnvironmentType.Conda) {
         return;
@@ -36,7 +36,7 @@ export async function getOutdatedPipPackages(env: Environment): Promise<Map<stri
         return;
     }
     const map = new Map<string, string>();
-    (JSON.parse(result.stdout) as OutdatedPipPackageInfo[]).forEach(pkg => map.set(pkg.name, pkg.latest_version));
+    (JSON.parse(result.stdout) as OutdatedPipPackageInfo[]).forEach((pkg) => map.set(pkg.name, pkg.latest_version));
     return map;
 }
 export async function updatePipPackage(env: Environment, pkg: PipPackageInfo) {
@@ -64,4 +64,8 @@ export async function uninstallPipPackage(env: Environment, pkg: PipPackageInfo)
     }
 
     await exec(env.path, ['-m', 'pip', 'uninstall', '-y', pkg.name], { timeout: 60_000 });
+}
+export async function exportPipPackages(env: Environment | ResolvedEnvironment) {
+    const result = await exec(env.path, ['-m', 'pip', 'freeze'], { timeout: 60_000 });
+    return { contents: result?.stdout, language: 'pip-requirements', file: 'requirements.txt' };
 }

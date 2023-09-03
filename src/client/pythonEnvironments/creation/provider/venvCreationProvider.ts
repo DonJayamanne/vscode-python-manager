@@ -124,7 +124,7 @@ async function createVenv(
                 traceError('Error while running venv creation script: ', progressAndTelemetry.getLastError());
                 deferred.reject(
                     progressAndTelemetry.getLastError() ||
-                    `Failed to create virtual environment with exitCode: ${proc?.exitCode}`,
+                        `Failed to create virtual environment with exitCode: ${proc?.exitCode}`,
                 );
             } else {
                 deferred.resolve(venvPath);
@@ -135,7 +135,7 @@ async function createVenv(
 }
 
 export class VenvCreationProvider implements CreateEnvironmentProvider {
-    constructor(private readonly interpreterQuickPick: IInterpreterQuickPick) { }
+    constructor(private readonly interpreterQuickPick: IInterpreterQuickPick) {}
 
     public async createEnvironment(options?: CreateEnvironmentOptions): Promise<CreateEnvironmentResult | undefined> {
         let workspace: WorkspaceFolder | undefined;
@@ -202,6 +202,7 @@ export class VenvCreationProvider implements CreateEnvironmentProvider {
                                         EnvironmentType.MicrosoftStore,
                                         EnvironmentType.Global,
                                         EnvironmentType.Pyenv,
+                                        EnvironmentType.Unknown,
                                     ].includes(getEnvironmentType(i)), // only global intepreters
                                 {
                                     skipRecommended: true,
@@ -345,4 +346,16 @@ export class VenvCreationProvider implements CreateEnvironmentProvider {
     id = `${PVSC_EXTENSION_ID}:venv`;
 
     tools = ['Venv'];
+}
+
+export function canCreateVenv(environments: readonly Environment[]) {
+    return environments.some((i: Environment) =>
+        [
+            EnvironmentType.System,
+            EnvironmentType.MicrosoftStore,
+            EnvironmentType.Global,
+            EnvironmentType.Pyenv,
+            EnvironmentType.Unknown,
+        ].includes(getEnvironmentType(i)),
+    ); // only global intepreters
 }

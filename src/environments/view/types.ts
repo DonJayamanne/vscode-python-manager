@@ -4,20 +4,12 @@
 
 import { Environment, PythonExtension, ResolvedEnvironment } from '@vscode/python-extension';
 import * as path from 'path';
-import {
-    MarkdownString,
-    ThemeIcon,
-    TreeItem,
-    TreeItemCollapsibleState,
-    Uri,
-    WorkspaceFolder,
-} from 'vscode';
+import { MarkdownString, ThemeIcon, TreeItem, TreeItemCollapsibleState, Uri, WorkspaceFolder } from 'vscode';
 import { EXTENSION_ROOT_DIR } from '../../client/constants';
 import { EnvironmentType } from '../../client/pythonEnvironments/info';
 import { getDisplayPath } from '../helpers';
 import { getEnvironmentType, isCondaEnvironment, isNonPythonCondaEnvironment } from '../utils';
 import { PackageInfo } from '../packages';
-import { canEnvBeDeleted } from '../envDeletion';
 
 export type PackageStatus = 'DetectingLatestVersion' | 'UpdatingToLatest' | 'UnInstalling' | 'Updating' | undefined;
 export class Package {
@@ -52,18 +44,26 @@ export class Package {
     }
 }
 export class EnvironmentTypeWrapper {
-    constructor(public readonly type: EnvironmentType) { }
+    constructor(public readonly type: EnvironmentType) {}
 }
 export class EnvironmentWrapper {
     public get id() {
         return this.env.id;
     }
-    constructor(public readonly env: Environment, private readonly isActiveEnvironment?: boolean, public readonly owningFolder?: WorkspaceFolder) { }
+    constructor(
+        public readonly env: Environment,
+        private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
+        private readonly isActiveEnvironment?: boolean,
+        public readonly owningFolder?: WorkspaceFolder,
+    ) {}
 
-    public asTreeItem(api: PythonExtension) {
+    public asTreeItem(
+        api: PythonExtension,
+        defaultState: TreeItemCollapsibleState = TreeItemCollapsibleState.Collapsed,
+    ) {
         const env = api.environments.known.find((e) => e.id === this.env.id);
         if (!env) {
-            const tree = new TreeItem('Not found', TreeItemCollapsibleState.Collapsed);
+            const tree = new TreeItem('Not found', defaultState);
             tree.description = 'Environment no longer found, please try refreshing';
             tree.iconPath = new ThemeIcon('error');
             return tree;
@@ -72,7 +72,7 @@ export class EnvironmentWrapper {
         const label = getEnvLabel(env);
         // const activePrefix = this.isActiveEnvironment ? 'Active: ' : '';
         const activePrefix = '';
-        const tree = new TreeItem(activePrefix + label + (version ? ` (${version})` : ''), TreeItemCollapsibleState.Collapsed);
+        const tree = new TreeItem(activePrefix + label + (version ? ` (${version})` : ''), defaultState);
         const isEmptyCondaEnv = getEnvironmentType(env) === EnvironmentType.Conda && !env.executable.uri;
         const executable = getDisplayPath(env.environment?.folderUri?.fsPath || env.path);
         tree.tooltip = [version, executable].filter((item) => !!item).join('\n');
@@ -84,33 +84,37 @@ export class EnvironmentWrapper {
         // If its a conda, env we can have conda envs without python, in such cases the version is empty.
         tree.description = executable;
         // tree.contextValue = `env`;
-        const deleteContext = canEnvBeDeleted(getEnvironmentType(env)) ? 'canBeDeleted' : 'cannotBeDeleted';
+        const deleteContext = this.canEnvBeDeleted(getEnvironmentType(env)) ? 'canBeDeleted' : 'cannotBeDeleted';
 
         tree.contextValue = `env:${deleteContext}:${getEnvironmentType(env)} `;
         if (this.isActiveEnvironment) {
-            tree.contextValue = `${tree.contextValue.trim()}:isActiveEnvironment`
+            tree.contextValue = `${tree.contextValue.trim()}:isActiveEnvironment`;
+        }
+        if (env.executable.sysPrefix) {
+            tree.contextValue = `${tree.contextValue.trim()}:hasSysPrefix`;
         }
         if (isNonPythonCondaEnvironment(this.env)) {
-            tree.contextValue = `${tree.contextValue.trim()}:isNonPythonCondaEnvironment`
+            tree.contextValue = `${tree.contextValue.trim()}:isNonPythonCondaEnvironment`;
         }
-        const defaultIcon = this.isActiveEnvironment === true ? new ThemeIcon('star') : Uri.file(path.join(EXTENSION_ROOT_DIR, 'resources/logo.svg'));
+        const defaultIcon =
+            this.isActiveEnvironment === true
+                ? new ThemeIcon('star')
+                : Uri.file(path.join(EXTENSION_ROOT_DIR, 'resources/logo.svg'));
         // const defaultIcon = Uri.file(path.join(EXTENSION_ROOT_DIR, 'resources/logo.svg'));
-        tree.iconPath = isEmptyCondaEnv
-            ? new ThemeIcon('warning')
-            : defaultIcon;
+        tree.iconPath = isEmptyCondaEnv ? new ThemeIcon('warning') : defaultIcon;
         return tree;
     }
 }
 
 export class EnvironmentInfo {
-    constructor(public readonly label: string, public value: string) { }
+    constructor(public readonly label: string, public value: string) {}
 }
 export class EnvironmentInformationWrapper {
-    constructor(public readonly env: Environment) { }
+    constructor(public readonly env: Environment) {}
 }
 export class PackageWrapper {
     public readonly packages: Package[] = [];
-    constructor(public env: Environment) { }
+    constructor(public env: Environment) {}
 }
 export type PythonEnvironmentTreeNode =
     | EnvironmentType

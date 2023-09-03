@@ -105,6 +105,11 @@
                 "icon": "$(cloud-download)"
             },
             {
+                "command": "python.envManager.searchAndInstallPackage",
+                "title": "Install Package",
+                "icon": "$(search)"
+            },
+            {
                 "command": "python.envManager.uninstallPackage",
                 "title": "Uninstall Package",
                 "icon": "$(trash)"
@@ -118,10 +123,20 @@
                 "command": "python.envManager.updateAllPackages",
                 "title": "Update All Packages",
                 "icon": "$(cloud-download)"
+            },
+            {
+                "command": "python.envManager.exportEnvironment",
+                "title": "Export Environment",
+                "icon": "$(export)"
             }
         ],
         "menus": {
             "view/title": [
+                {
+                    "command": "python.envManager.create",
+                    "when": "(view == workspaceEnvironments) && !isRefreshingPythonEnvironments",
+                    "group": "navigation"
+                },
                 {
                     "command": "python.envManager.refresh",
                     "when": "(view == pythonEnvironments || view == workspaceEnvironments) && !isRefreshingPythonEnvironments",
@@ -145,11 +160,6 @@
                     "group": "inline"
                 },
                 {
-                    "command": "python.envManager.delete",
-                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^env:canBeDeleted:/",
-                    "group": "inline@2"
-                },
-                {
                     "command": "python.envManager.openInTerminal",
                     "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^env:/ && !(viewItem =~/isNonPythonCondaEnvironment/)",
                     "group": "inline@2"
@@ -160,9 +170,24 @@
                     "group": "inline@3"
                 },
                 {
+                    "command": "python.envManager.delete",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^env:canBeDeleted:/",
+                    "group": "inline@5"
+                },
+                {
                     "command": "python.envManager.updatePackage",
                     "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^package:outdated/",
                     "group": "inline@3"
+                },
+                {
+                    "command": "python.envManager.searchAndInstallPackage",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "python.envManager.exportEnvironment",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^env:/ && viewItem =~ /:hasSysPrefix/",
+                    "group": "inline@4"
                 },
                 {
                     "command": "python.envManager.uninstallPackage",
@@ -172,7 +197,7 @@
                 {
                     "command": "python.envManager.refreshPackages",
                     "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/ && !(viewItem =~/isNonPythonCondaEnvironment/)",
-                    "group": "inline@3"
+                    "group": "inline@2"
                 },
                 {
                     "command": "python.envManager.updateAllPackages",

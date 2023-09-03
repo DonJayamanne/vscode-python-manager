@@ -3,11 +3,9 @@
 
 'use strict';
 
-import { IExtensionActivationService } from '../activation/types';
 import { IServiceManager } from '../ioc/types';
 import { EnvironmentActivationService } from './activation/service';
-import { TerminalEnvVarCollectionService } from './activation/terminalEnvVarCollectionService';
-import { IEnvironmentActivationService, ITerminalEnvVarCollectionService } from './activation/types';
+import { IEnvironmentActivationService } from './activation/types';
 import { EnvironmentTypeComparer } from './configuration/environmentTypeComparer';
 import { SetInterpreterCommand } from './configuration/interpreterSelector/commands/setInterpreter';
 import { InterpreterSelector } from './configuration/interpreterSelector/interpreterSelector';
@@ -43,9 +41,4 @@ export function registerTypes(serviceManager: IServiceManager): void {
         IEnvironmentActivationService,
         EnvironmentActivationService,
     );
-    serviceManager.addSingleton<ITerminalEnvVarCollectionService>(
-        ITerminalEnvVarCollectionService,
-        TerminalEnvVarCollectionService,
-    );
-    serviceManager.addBinding(ITerminalEnvVarCollectionService, IExtensionActivationService);
 }

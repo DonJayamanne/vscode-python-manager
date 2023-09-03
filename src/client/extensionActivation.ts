@@ -4,7 +4,7 @@
 'use strict';
 
 import { registerTypes as activationRegisterTypes } from './activation/serviceRegistry';
-import { IExtensionActivationManager } from './activation/types';
+import { IExtensionActivationManager, IExtensionActivationService } from './activation/types';
 
 import { IApplicationEnvironment } from './common/application/types';
 import { UseProposedApi } from './common/constants';
@@ -18,6 +18,7 @@ import { ActivationResult, ExtensionState } from './components';
 import { Components } from './extensionInit';
 import { IInterpreterQuickPick } from './interpreter/configuration/types';
 import { registerAllCreateEnvironmentFeatures } from './pythonEnvironments/creation/registrations';
+import { Dummy } from '../environments/sillyDI';
 
 export async function activateComponents(
     // `ext` is passed to any extra activation funcs.
@@ -75,6 +76,8 @@ async function activateLegacy(ext: ExtensionState): Promise<ActivationResult> {
     serviceManager.addSingletonInstance<boolean>(UseProposedApi, enableProposedApi);
     // Feature specific registrations.
     activationRegisterTypes(serviceManager);
+
+    serviceManager.addSingleton<IExtensionActivationService>(IExtensionActivationService, Dummy);
 
     // "activate" everything else
     const manager = serviceContainer.get<IExtensionActivationManager>(IExtensionActivationManager);

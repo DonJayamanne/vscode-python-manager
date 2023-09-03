@@ -7,7 +7,7 @@ import { IServiceManager } from '../client/ioc/types';
 import { activate } from './terminal';
 import { activate as activateMamba } from './micromamba/downloader';
 import { activate as activatePythonInstallation } from './installPython';
-import { activate as activateEnvDeletion } from './envDeletion';
+import { activate as activateEnvDeletion, canEnvBeDeleted } from './envDeletion';
 import { activate as activateEnvCreation } from './envCreation';
 import { activate as activateSetActiveInterpreter } from './activeInterpreter';
 import { PythonEnvironmentsTreeDataProvider } from './view/environmentsTreeDataProvider';
@@ -20,22 +20,20 @@ export function registerTypes(serviceManager: IServiceManager, context: Extensio
         context.subscriptions.push(treeDataProvider);
         window.createTreeView('pythonEnvironments', { treeDataProvider });
 
-        const workspaceFoldersTreeDataProvider = new WorkspaceFoldersTreeDataProvider(context, api);
+        const workspaceFoldersTreeDataProvider = new WorkspaceFoldersTreeDataProvider(context, api, canEnvBeDeleted);
         context.subscriptions.push(workspaceFoldersTreeDataProvider);
         window.createTreeView('workspaceEnvironments', { treeDataProvider: workspaceFoldersTreeDataProvider });
         context.subscriptions.push(
             commands.registerCommand('python.envManager.refresh', (forceRefresh = true) => {
                 treeDataProvider.refresh(forceRefresh);
                 workspaceFoldersTreeDataProvider.refresh(forceRefresh);
-            }
-            ),
+            }),
         );
         context.subscriptions.push(
             commands.registerCommand('python.envManager.refreshing', (forceRefresh = true) => {
                 treeDataProvider.refresh(forceRefresh);
                 workspaceFoldersTreeDataProvider.refresh(forceRefresh);
-            },
-            ),
+            }),
         );
     });
     activate(context, serviceManager);

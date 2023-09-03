@@ -25,32 +25,33 @@ declare interface String {
     trimQuotes(): string;
 }
 
-/**
- * Appropriately formats a string so it can be used as an argument for a command in a shell.
- * E.g. if an argument contains a space, then it will be enclosed within double quotes.
- * @param {String} value.
- */
-String.prototype.toCommandArgumentForPythonExt = function (this: string): string {
-    if (!this) {
-        return this;
-    }
-    return (this.indexOf(' ') >= 0 || this.indexOf('&') >= 0 || this.indexOf('(') >= 0 || this.indexOf(')') >= 0) &&
-        !this.startsWith('"') &&
-        !this.endsWith('"')
-        ? `"${this}"`
-        : this.toString();
-};
+// Commented as we will have Python extension loaded in the same process.
+// /**
+//  * Appropriately formats a string so it can be used as an argument for a command in a shell.
+//  * E.g. if an argument contains a space, then it will be enclosed within double quotes.
+//  * @param {String} value.
+//  */
+// String.prototype.toCommandArgumentForPythonExt = function (this: string): string {
+//     if (!this) {
+//         return this;
+//     }
+//     return (this.indexOf(' ') >= 0 || this.indexOf('&') >= 0 || this.indexOf('(') >= 0 || this.indexOf(')') >= 0) &&
+//         !this.startsWith('"') &&
+//         !this.endsWith('"')
+//         ? `"${this}"`
+//         : this.toString();
+// };
 
-/**
- * Appropriately formats a a file path so it can be used as an argument for a command in a shell.
- * E.g. if an argument contains a space, then it will be enclosed within double quotes.
- */
-String.prototype.fileToCommandArgumentForPythonExt = function (this: string): string {
-    if (!this) {
-        return this;
-    }
-    return this.toCommandArgumentForPythonExt().replace(/\\/g, '/');
-};
+// /**
+//  * Appropriately formats a a file path so it can be used as an argument for a command in a shell.
+//  * E.g. if an argument contains a space, then it will be enclosed within double quotes.
+//  */
+// String.prototype.fileToCommandArgumentForPythonExt = function (this: string): string {
+//     if (!this) {
+//         return this;
+//     }
+//     return this.toCommandArgumentForPythonExt().replace(/\\/g, '/');
+// };
 
 /**
  * String.trimQuotes implementation
