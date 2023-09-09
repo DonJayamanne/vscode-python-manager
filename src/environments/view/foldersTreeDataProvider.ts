@@ -35,7 +35,7 @@ export class ActiveWorkspaceEnvironment {
         public readonly folder: WorkspaceFolder,
         private readonly api: PythonExtension,
         private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
-    ) { }
+    ) {}
     public asNode(api: PythonExtension = this.api) {
         const envPath = api.environments.getActiveEnvironmentPath(this.folder.uri);
         const env = envPath ? api.environments.known.find((e) => e.id === envPath.id) : undefined;
@@ -48,7 +48,10 @@ export class ActiveWorkspaceEnvironment {
         if (env) {
             return envTreeProvider.getTreeItem(env, TreeItemCollapsibleState.Expanded);
         }
-        const label = (workspace.workspaceFolders?.length || 0) > 1 ? `No Active Environment for ${this.folder.name}` : `No Active Environment`
+        const label =
+            (workspace.workspaceFolders?.length || 0) > 1
+                ? `No Active Environment for ${this.folder.name}`
+                : `No Active Environment`;
         const tree = new TreeItem(label, TreeItemCollapsibleState.Collapsed);
         tree.iconPath = new ThemeIcon('folder');
         return tree;
@@ -58,7 +61,7 @@ export class WorkspaceFolderWrapper {
     constructor(
         public readonly folder: WorkspaceFolder,
         private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
-    ) { }
+    ) {}
     public asTreeItem(api: PythonExtension) {
         if (workspace.workspaceFolders?.length === 1) {
             const envPath = api.environments.getActiveEnvironmentPath(this.folder.uri);
@@ -74,7 +77,7 @@ export class WorkspaceFolderWrapper {
     }
 }
 export class WorkspaceFolderEnvironments {
-    constructor(public readonly folder: WorkspaceFolder) { }
+    constructor(public readonly folder: WorkspaceFolder) {}
 
     public asTreeItem() {
         const tree = new TreeItem('Workspace Envs', TreeItemCollapsibleState.Expanded);

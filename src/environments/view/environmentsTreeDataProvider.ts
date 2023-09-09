@@ -107,7 +107,10 @@ export class PythonEnvironmentsTreeDataProvider implements TreeDataProvider<Pyth
     }
     async getTreeItem(element: PythonEnvironmentTreeNode): Promise<TreeItem> {
         if (typeof element === 'string') {
-            const tree = new TreeItem(element === EnvironmentType.Unknown ? 'Global' : element, TreeItemCollapsibleState.Collapsed);
+            const tree = new TreeItem(
+                element === EnvironmentType.Unknown ? 'Global' : element,
+                TreeItemCollapsibleState.Collapsed,
+            );
             const createContext = canEnvBeCreated(element) ? 'canCreate' : 'cannotCreate';
             tree.contextValue = `envType:${createContext}:${element} `;
             if (element === EnvironmentType.Conda && this.condaInfo) {
