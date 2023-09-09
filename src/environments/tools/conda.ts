@@ -2,7 +2,7 @@ import { Environment, PythonExtension, ResolvedEnvironment } from '@vscode/pytho
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { EOL } from 'os';
-import { CancellationToken, Progress, ProgressLocation, window } from 'vscode';
+import { CancellationToken, Progress, ProgressLocation, QuickPickItem, window } from 'vscode';
 import { ApplicationShell } from '../../client/common/application/applicationShell';
 import { execObservable } from '../../client/common/process/rawProcessApis';
 import { InputStep, MultiStepInput } from '../../client/common/utils/multiStepInput';
@@ -13,6 +13,7 @@ import { exec } from '../../client/pythonEnvironments/common/externalDependencie
 import { getDisplayPath, getEnvDisplayInfo, getEnvLoggingInfo, home } from '../helpers';
 import { MICROMAMBA_ROOTPREFIX } from '../micromamba/constants';
 import { isCondaEnvironment } from '../utils';
+import { SpawnOptions } from '../../client/common/process/types';
 
 export type CondaPackageInfo = {
     // eslint-disable-next-line camelcase
@@ -104,13 +105,17 @@ export async function updateCondaPackages(env: Environment) {
     );
     await exec(conda.command, args, { timeout: 60_000 });
 }
-export async function uninstallCondaPackage(env: Environment, pkg: CondaPackageInfo) {
+export async function getUninstallCondaPackageSpawnOptions(
+    env: Environment,
+    pkg: CondaPackageInfo,
+    _token: CancellationToken,
+): Promise<{ command: string; args: string[]; options?: SpawnOptions }> {
     if (!isCondaEnvironment(env) || !env.executable.uri) {
-        return;
+        throw new Error('Not Supported');
     }
     const conda = await Conda.getConda();
     if (!conda) {
-        return;
+        throw new Error('Not Supported');
     }
 
     const args = ['remove', pkg.name, '-y'].concat(
@@ -118,7 +123,7 @@ export async function uninstallCondaPackage(env: Environment, pkg: CondaPackageI
             ? ['-n', env.environment.name]
             : ['-p', env.environment?.folderUri?.fsPath || path.dirname(env.path)],
     );
-    await exec(conda.command, args, { timeout: 60_000 });
+    return { command: conda.command, args };
 }
 export async function updateCondaPackage(env: Environment, pkg: CondaPackageInfo) {
     if (!isCondaEnvironment(env) || !env.executable.uri) {
@@ -357,4 +362,78 @@ export async function exportCondaPackages(env: Environment | ResolvedEnvironment
         { timeout: 60_000 },
     );
     return { contents: result.stdout, language: 'yaml', file: 'environment.yml' };
+}
+export async function getCondaPackageInstallSpawnOptions(
+    env: Environment | ResolvedEnvironment,
+    packageInfo: { name: string; channel?: string; version: string },
+    _token: CancellationToken,
+) {
+    const conda = await Conda.getConda();
+    if (!conda) {
+        throw new Error(`Conda not found`);
+    }
+
+    if (!env.executable.sysPrefix) {
+        throw new Error(`Invalid Conda Env`);
+    }
+    const args = ['install'];
+    if (packageInfo.channel) {
+        args.push('-c', packageInfo.channel);
+    }
+    args.push(`${packageInfo.name}==${packageInfo.version}`);
+    args.push('-p', env.executable.sysPrefix.fileToCommandArgumentForPythonExt(), '-y');
+    return { command: conda.command, args };
+}
+
+export async function searchCondaPackage(
+    value: string,
+    _env: Environment,
+    token: CancellationToken,
+): Promise<(QuickPickItem & { item: { name: string; version: string; channel: string } })[]> {
+    try {
+        const conda = await Conda.getConda();
+        if (!conda) {
+            traceError(`Conda not found`);
+            return [];
+        }
+
+        const message = `Searching for Conda packages with command ${[
+            conda.command,
+            'search',
+            '-f',
+            value,
+        ]}]}`;
+        traceVerbose(message);
+        const result = await exec(conda.command, ['search', '-f', value], { timeout: 60_000, token });
+        const lines = result.stdout
+            .split(/\r?\n/g)
+            .filter((line) => line.trim().length)
+            .filter((line) => !line.startsWith('Loading channels: done'))
+            .filter((line) => !line.startsWith('# Name'));
+        if (lines.length === 0) {
+            return [];
+        }
+        const items: (QuickPickItem & { item: { name: string; version: string; channel: string } })[] = [];
+        const addedItems = new Set<string>();
+        lines.forEach((line) => {
+            const parts = line
+                .split(' ')
+                .map((p) => p.trim())
+                .filter((p) => p.length);
+            if (parts.length !== 4) {
+                return;
+            }
+            const key = `${parts[0]}-${parts[1]}-${parts[3]}`;
+            if (addedItems.has(key)) {
+                return;
+            }
+            addedItems.add(key);
+            const item = { name: parts[0], version: parts[1], channel: parts[3] };
+            items.push({ label: item.name, description: `${item.version} (${item.channel})`, item });
+        });
+        return items.reverse();
+    } catch (ex) {
+        traceError(`Failed to search for package`, ex);
+        return [];
+    }
 }

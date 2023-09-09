@@ -60,7 +60,8 @@ export function registerCommands(context: ExtensionContext) {
 
             pkg.status = 'UnInstalling';
             triggerChanges(pkg);
-            await uninstallPackage(pkg.env, pkg.pkg);
+            uninstallPackage(pkg.env, pkg.pkg);
+
             pkg.status = undefined;
 
             // Other packages may have been uninstalled, so refresh all packages.
@@ -69,18 +70,18 @@ export function registerCommands(context: ExtensionContext) {
     );
     disposables.push(
         commands.registerCommand('python.envManager.searchAndInstallPackage', async (pkg: PackageWrapper) => {
-            const packageName = await searchPackage(pkg.env).catch((ex) =>
+            const result = await searchPackage(pkg.env).catch((ex) =>
                 traceError(`Failed to install a package in ${pkg.env.id}`, ex),
             );
-            if (!packageName) {
+            if (!result) {
                 return;
             }
-            if (packageName) {
-                await installPackage(pkg.env, packageName);
-            }
+            if (result) {
+                await installPackage(pkg.env, result);
 
-            // Other packages may have been updated, so refresh all packages.
-            triggerChanges(pkg);
+                // Other packages may have been updated, so refresh all packages.
+                triggerChanges(pkg);
+            }
         }),
     );
     disposables.push(

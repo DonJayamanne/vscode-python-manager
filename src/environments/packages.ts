@@ -1,21 +1,26 @@
 import { Environment } from '@vscode/python-extension';
+import { ProgressLocation, QuickPickItem, window } from 'vscode';
 import { traceError } from '../client/logging';
 import {
     OutdatedPipPackageInfo,
     PipPackageInfo,
     exportPipPackages,
+    getInstallPipPackageSpawnOptions,
     getOutdatedPipPackages,
     getPipPackages,
-    uninstallPipPackage,
+    getUninstallPipPackageSpawnOptions,
+    searchPipPackage,
     updatePipPackage,
     updatePipPackages,
 } from './tools/pip';
 import {
     CondaPackageInfo,
     exportCondaPackages,
+    getCondaPackageInstallSpawnOptions,
     getCondaPackages,
     getOutdatedCondaPackages,
-    uninstallCondaPackage,
+    getUninstallCondaPackageSpawnOptions,
+    searchCondaPackage,
     updateCondaPackage,
     updateCondaPackages,
 } from './tools/conda';
@@ -23,11 +28,14 @@ import { getEnvironmentType, isCondaEnvironment } from './utils';
 import { EnvironmentType } from '../client/pythonEnvironments/info';
 import {
     exportPoetryPackages,
-    installPoetryPackage,
+    getPoetryPackageInstallSpawnOptions,
+    getUninstallPoetryPackageSpawnOptions,
     searchPoetryPackage,
-    uninstallPoetryPackage,
     updatePoetryPackages,
 } from './tools/poetry';
+import { SpawnOptions } from '../client/common/process/types';
+import { getEnvLoggingInfo, reportStdOutProgress } from './helpers';
+import { searchPackageWithProvider } from './packageSearch';
 
 export type PackageInfo = PipPackageInfo | CondaPackageInfo;
 export type OutdatedPackageInfo = OutdatedPipPackageInfo;
@@ -88,18 +96,38 @@ export async function updatePackages(env: Environment) {
     }
 }
 export async function uninstallPackage(env: Environment, pkg: PackageInfo) {
-    try {
-        if (isCondaEnvironment(env)) {
-            await uninstallCondaPackage(env, pkg);
-        } else if (getEnvironmentType(env) === EnvironmentType.Poetry) {
-            await uninstallPoetryPackage(env, pkg.name);
-        } else {
-            await uninstallPipPackage(env, pkg);
-        }
-    } catch (ex) {
-        traceError(`Failed to uninstall package ${pkg.name} in ${env.id})`, ex);
-        return [];
-    }
+    await window.withProgress(
+        { location: ProgressLocation.Notification, cancellable: true, title: `Uninstalling ${pkg.name}` },
+        async (progress, token) => {
+            let result: {
+                command: string;
+                args: string[];
+                options?: SpawnOptions | undefined;
+            };
+            try {
+                if (isCondaEnvironment(env)) {
+                    result = await getUninstallCondaPackageSpawnOptions(env, pkg, token);
+                } else if (getEnvironmentType(env) === EnvironmentType.Poetry) {
+                    result = await getUninstallPoetryPackageSpawnOptions(env, pkg.name, token);
+                } else {
+                    result = await getUninstallPipPackageSpawnOptions(env, pkg, token);
+                }
+                const message = `Uninstalling package ${pkg.name} from ${getEnvLoggingInfo(env)} with command ${[
+                    result.command,
+                    ...result.args,
+                ]}]}`;
+                await reportStdOutProgress(
+                    message,
+                    [result.command, result.args, { timeout: 60_000, ...(result.options || {}) }],
+                    progress,
+                    token,
+                );
+            } catch (ex) {
+                traceError(`Failed to uninstall package ${pkg.name} in ${env.id})`, ex);
+                return [];
+            }
+        },
+    );
 }
 export async function exportPackages(env: Environment) {
     try {
@@ -114,22 +142,79 @@ export async function exportPackages(env: Environment) {
         traceError(`Failed to export environment ${env.id}`, ex);
     }
 }
-export async function searchPackage(env: Environment) {
+
+type ExtractItemType<T> = T extends (QuickPickItem & { item: infer R })[] ? (R | undefined) : undefined;
+type SearchPackageResult =
+    | {
+        conda: ExtractItemType<Awaited<ReturnType<typeof searchCondaPackage>>>;
+    }
+    | {
+        poetry: ExtractItemType<Awaited<ReturnType<typeof searchPoetryPackage>>>;
+    }
+    | {
+        pip: ExtractItemType<Awaited<ReturnType<typeof searchPipPackage>>>;
+    };
+
+export async function searchPackage(env: Environment): Promise<SearchPackageResult> {
     try {
-        if (getEnvironmentType(env) === EnvironmentType.Poetry) {
-            return searchPoetryPackage(env);
+        if (isCondaEnvironment(env)) {
+            const result = await searchPackageWithProvider(searchCondaPackage, env);
+            return { conda: result };
         }
+        if (getEnvironmentType(env) === EnvironmentType.Poetry) {
+            const result = await searchPackageWithProvider(searchPoetryPackage, env);
+            return { poetry: result };
+        }
+        const result = await searchPackageWithProvider(searchPipPackage, env);
+        return { pip: result };
     } catch (ex) {
         traceError(`Failed to install a package in ${env.id})`, ex);
+        throw ex;
     }
 }
-export async function installPackage(env: Environment, packageName: string) {
-    try {
-        if (getEnvironmentType(env) === EnvironmentType.Poetry) {
-            await installPoetryPackage(env, packageName);
-        }
-    } catch (ex) {
-        traceError(`Failed to install a package in ${env.id})`, ex);
-        return [];
+export async function installPackage(env: Environment, packageInfo: SearchPackageResult) {
+    let packageName = '';
+    if ('conda' in packageInfo && packageInfo.conda) {
+        packageName = packageInfo.conda.name;
+    } else if ('poetry' in packageInfo && packageInfo.poetry) {
+        packageName = packageInfo.poetry;
+    } else if ('pip' in packageInfo && packageInfo.pip) {
+        packageName = packageInfo.pip.name;
+    } else {
+        throw new Error('Not supported');
     }
+
+    await window.withProgress(
+        { location: ProgressLocation.Notification, cancellable: true, title: `Installing ${packageName}` },
+        async (progress, token) => {
+            let result: {
+                command: string;
+                args: string[];
+                options?: SpawnOptions | undefined;
+            };
+            try {
+                if ('conda' in packageInfo && packageInfo.conda) {
+                    result = await getCondaPackageInstallSpawnOptions(env, packageInfo.conda, token);
+                } else if ('poetry' in packageInfo && packageInfo.poetry) {
+                    result = await getPoetryPackageInstallSpawnOptions(env, packageInfo.poetry, token);
+                } else if ('pip' in packageInfo && packageInfo.pip) {
+                    result = await getInstallPipPackageSpawnOptions(env, packageInfo.pip, token);
+                } else {
+                    throw new Error('Not supported');
+                }
+                const message = `Installing package ${packageName} into ${getEnvLoggingInfo(env)} with command ${[
+                    result.command,
+                    ...result.args,
+                ]}]}`;
+                await reportStdOutProgress(
+                    message,
+                    [result.command, result.args, { timeout: 60_000, ...(result.options || {}) }],
+                    progress,
+                    token,
+                );
+            } catch (ex) {
+                traceError(`Failed to install package ${packageName} into ${getEnvLoggingInfo(env)})`, ex);
+            }
+        },
+    );
 }

@@ -20,6 +20,7 @@ export class Package {
         public readonly parent: PackageWrapper,
         public readonly env: Environment,
         public readonly pkg: PackageInfo,
+        public readonly owningFolder?: WorkspaceFolder,
     ) {
         parent.packages.push(this);
     }
@@ -40,6 +41,14 @@ export class Package {
             tree.tooltip = tooltip;
             tree.iconPath = this.status ? new ThemeIcon('loading~spin') : new ThemeIcon('library');
         }
+        if (isNonPythonCondaEnvironment(this.env)) {
+            //
+        } else if (getEnvironmentType(this.env) === EnvironmentType.Poetry && !this.owningFolder) {
+            // We cannot install packages into this, as we do not have the folder that owns this environment.
+        } else {
+            tree.contextValue = `${tree.contextValue.trim()}:canManagePackages`;
+        }
+
         return tree;
     }
 }
@@ -114,7 +123,22 @@ export class EnvironmentInformationWrapper {
 }
 export class PackageWrapper {
     public readonly packages: Package[] = [];
-    constructor(public env: Environment) {}
+    constructor(public env: Environment, public owningFolder?: WorkspaceFolder) {}
+    asTreeItem(defaultState: TreeItemCollapsibleState = TreeItemCollapsibleState.Collapsed) {
+        const tree = new TreeItem('Packages', defaultState);
+
+        tree.contextValue = 'packageContainer';
+        if (isNonPythonCondaEnvironment(this.env)) {
+            tree.contextValue = `${tree.contextValue.trim()}:isNonPythonCondaEnvironment`;
+        } else if (getEnvironmentType(this.env) === EnvironmentType.Poetry && !this.owningFolder) {
+            // We cannot install packages into this, as we do not have the folder that owns this environment.
+        } else {
+            tree.contextValue = `${tree.contextValue.trim()}:canManagePackages`;
+        }
+
+        tree.iconPath = new ThemeIcon('package');
+        return tree;
+    }
 }
 export type PythonEnvironmentTreeNode =
     | EnvironmentType

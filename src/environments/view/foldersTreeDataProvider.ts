@@ -22,6 +22,7 @@ import { clearCacheIfNewVersionInstalled } from '../cache';
 import { noop } from '../../client/common/utils/misc';
 import { EnvironmentType } from '../../client/pythonEnvironments/info';
 import { getPoetryEnvironments, hasPoetryEnvs } from '../tools/poetry';
+import { isNonPythonCondaEnvironment } from '../utils';
 
 export type WorkspaceFoldersTreeNode =
     | WorkspaceFolderWrapper
@@ -34,7 +35,7 @@ export class ActiveWorkspaceEnvironment {
         public readonly folder: WorkspaceFolder,
         private readonly api: PythonExtension,
         private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
-    ) {}
+    ) { }
     public asNode(api: PythonExtension = this.api) {
         const envPath = api.environments.getActiveEnvironmentPath(this.folder.uri);
         const env = envPath ? api.environments.known.find((e) => e.id === envPath.id) : undefined;
@@ -47,8 +48,8 @@ export class ActiveWorkspaceEnvironment {
         if (env) {
             return envTreeProvider.getTreeItem(env, TreeItemCollapsibleState.Expanded);
         }
-        const tree = new TreeItem(`No Active Environment ${this.folder.name}`, TreeItemCollapsibleState.Collapsed);
-        // tree.description = 'Environment no longer found, please try refreshing';
+        const label = (workspace.workspaceFolders?.length || 0) > 1 ? `No Active Environment for ${this.folder.name}` : `No Active Environment`
+        const tree = new TreeItem(label, TreeItemCollapsibleState.Collapsed);
         tree.iconPath = new ThemeIcon('folder');
         return tree;
     }
@@ -57,7 +58,7 @@ export class WorkspaceFolderWrapper {
     constructor(
         public readonly folder: WorkspaceFolder,
         private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
-    ) {}
+    ) { }
     public asTreeItem(api: PythonExtension) {
         if (workspace.workspaceFolders?.length === 1) {
             const envPath = api.environments.getActiveEnvironmentPath(this.folder.uri);
@@ -73,7 +74,7 @@ export class WorkspaceFolderWrapper {
     }
 }
 export class WorkspaceFolderEnvironments {
-    constructor(public readonly folder: WorkspaceFolder) {}
+    constructor(public readonly folder: WorkspaceFolder) { }
 
     public asTreeItem() {
         const tree = new TreeItem('Workspace Envs', TreeItemCollapsibleState.Expanded);
@@ -242,5 +243,13 @@ async function getAllEnvsBelongingToWorkspaceFolder(
             ...poetryEnvsInWorkspaceFolder.map((e) => new EnvironmentWrapper(e, canEnvBeDeleted, undefined, folder)),
         );
     }
-    return envs;
+    return envs.sort((a, b) => {
+        if (isNonPythonCondaEnvironment(a.env) && !isNonPythonCondaEnvironment(b.env)) {
+            return 1;
+        }
+        if (!isNonPythonCondaEnvironment(a.env) && isNonPythonCondaEnvironment(b.env)) {
+            return -1;
+        }
+        return (a.asTreeItem(api).label || '').toString().localeCompare((b.asTreeItem(api).label || '').toString());
+    });
 }

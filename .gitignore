@@ -47,3 +47,4 @@ dist/**
 *.xlf
 package.nls.*.json
 l10n/
+vscode.d.ts

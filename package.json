@@ -181,7 +181,7 @@
                 },
                 {
                     "command": "python.envManager.searchAndInstallPackage",
-                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/ && viewItem =~/canManagePackages/",
                     "group": "inline@1"
                 },
                 {
@@ -191,7 +191,7 @@
                 },
                 {
                     "command": "python.envManager.uninstallPackage",
-                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^package:/",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^package:/ && viewItem =~/canManagePackages/",
                     "group": "inline@3"
                 },
                 {
@@ -201,7 +201,7 @@
                 },
                 {
                     "command": "python.envManager.updateAllPackages",
-                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/ && !(viewItem =~/isNonPythonCondaEnvironment/)",
+                    "when": "(view == pythonEnvironments || view == workspaceEnvironments) && viewItem =~ /^packageContainer/ && viewItem =~/canManagePackages/",
                     "group": "inline@3"
                 }
             ]
@@ -235,7 +235,7 @@
         }
     },
     "scripts": {
-        "postinstall": "vscode-dts main",
+        "postinstall": "vscode-dts 1.82.0",
         "package": "gulp clean && gulp prePublishBundle && vsce package -o python-env-manager.vsix",
         "prePublish": "gulp clean && gulp prePublishNonBundle",
         "compile": "tsc -watch -p ./",

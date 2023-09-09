@@ -56,15 +56,7 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Pytho
             return element.asTreeItem();
         }
         if (element instanceof PackageWrapper) {
-            const tree = new TreeItem('Packages', defaultState);
-
-            tree.contextValue = 'packageContainer';
-            if (isNonPythonCondaEnvironment(element.env)) {
-                tree.contextValue = `${tree.contextValue.trim()}:isNonPythonCondaEnvironment`;
-            }
-
-            tree.iconPath = new ThemeIcon('package');
-            return tree;
+            return element.asTreeItem(defaultState);
         }
         if (element instanceof EnvironmentInfo) {
             const tree = new TreeItem(element.label);
@@ -102,7 +94,10 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Pytho
             if (isNonPythonCondaEnvironment(element.env)) {
                 return [new EnvironmentInformationWrapper(element.env)];
             }
-            return [new EnvironmentInformationWrapper(element.env), new PackageWrapper(element.env)];
+            return [
+                new EnvironmentInformationWrapper(element.env),
+                new PackageWrapper(element.env, element.owningFolder),
+            ];
         }
         if (element instanceof PackageWrapper) {
             const env = this.api.environments.known.find((e) => e.id === element.env.id);
@@ -127,7 +122,7 @@ export class PythonEnvironmentTreeDataProvider implements TreeDataProvider<Pytho
 
             return getPackages(env).then((pkgs) => {
                 const packages = pkgs.map((pkg) => {
-                    const item = new Package(element, env, pkg);
+                    const item = new Package(element, env, pkg, element.owningFolder);
                     const packagesMap = packagesByEnv.get(env.id) || new Map<string, Package>();
                     packagesByEnv.set(env.id, packagesMap);
                     packagesMap.set(pkg.name, item);

@@ -4,18 +4,12 @@
 'use strict';
 
 import { Container } from 'inversify';
-import { Disposable, Memento, window } from 'vscode';
+import { Disposable, Memento } from 'vscode';
 import { registerTypes as platformRegisterTypes } from './common/platform/serviceRegistry';
 import { registerTypes as processRegisterTypes } from './common/process/serviceRegistry';
 import { registerTypes as commonRegisterTypes } from './common/serviceRegistry';
 import { registerTypes as interpretersRegisterTypes } from './interpreter/serviceRegistry';
-import {
-    GLOBAL_MEMENTO,
-    IDisposableRegistry,
-    IExtensionContext,
-    IMemento,
-    WORKSPACE_MEMENTO,
-} from './common/types';
+import { GLOBAL_MEMENTO, IDisposableRegistry, IExtensionContext, IMemento, WORKSPACE_MEMENTO } from './common/types';
 import { registerTypes as variableRegisterTypes } from './common/variables/serviceRegistry';
 import { ExtensionState } from './components';
 import { ServiceContainer } from './ioc/container';
@@ -25,6 +19,7 @@ import * as pythonEnvironments from './pythonEnvironments';
 import { IDiscoveryAPI } from './pythonEnvironments/base/locator';
 import { registerLogger } from './logging';
 import { OutputChannelLogger } from './logging/outputChannelLogger';
+import { loggingOutputChannel } from '../environments/constants';
 
 // The code in this module should do nothing more complex than register
 // objects to DI and simple init (e.g. no side effects).  That implies
@@ -48,8 +43,7 @@ export function initializeGlobals(
     serviceManager.addSingletonInstance<Memento>(IMemento, context.workspaceState, WORKSPACE_MEMENTO);
     serviceManager.addSingletonInstance<IExtensionContext>(IExtensionContext, context);
 
-    const standardOutputChannel = window.createOutputChannel('Python Environments (logging)');
-    context.subscriptions.push(registerLogger(new OutputChannelLogger(standardOutputChannel)));
+    context.subscriptions.push(registerLogger(new OutputChannelLogger(loggingOutputChannel)));
 
     return {
         context,
