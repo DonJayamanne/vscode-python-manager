@@ -28,7 +28,7 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 <table>
   <tr>
     <td valign="top">
-    <video src="./images/activeWorkspaceEnv.mp4" autoplay loop controls muted height="250px" title="Quickly Change Workspace Python Environment"></video>
+    <video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/activeWorkspaceEnv.mp4" autoplay loop controls muted height="250px" title="Quickly Change Workspace Python Environment"></video>
     </td>
     <td valign="top">
     <ul>
