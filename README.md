@@ -28,9 +28,7 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 <table>
   <tr>
     <td valign="top">
-    <video autoplay loop muted markdown="1" height="250px" >
-        <source src="./images/activeWorkspaceEnv.mp4" type="video/mp4" markdown="1" >
-    </video>
+    <video src="./images/activeWorkspaceEnv.mp4" autoplay loop controls muted height="250px" title="Quickly Change Workspace Python Environment"></video>
     </td>
     <td valign="top">
     <ul>
@@ -45,9 +43,7 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 <table>
   <tr>
     <td valign="top">
-    <video autoplay loop muted markdown="1" width="450px" >
-        <source src="./images/workspaceEnvs.mp4" type="video/mp4" markdown="1" >
-    </video>
+    <video src="./images/workspaceEnvs.mp4" autoplay loop controls muted height="250px" title="Workspace Environments"></video>
     </td>
     <td valign="top">
     <ul>
@@ -62,20 +58,12 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 
 ### Create Workspace Environments
 
-<video autoplay loop muted markdown="1" width="450px" >
-    <source src="./images/createVenv.mp4" type="video/mp4" markdown="1" >
-</video>
+<video src="./images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Workspace Environments"></video>
 
 ### Create Other Environments (Conda, PyEnv, etc)
 
-<video autoplay loop muted markdown="1" width="450px" >
-    <source src="./images/createVenv.mp4" type="video/mp4" markdown="1" >
-</video>
-
+<video src="./images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Other Environments (Conda, PyEnv, etc)"></video>
 
 ### Manage Packages (install, update, and uninstall)
 
-<video autoplay loop muted markdown="1" width="450px" >
-    <source src="./images/managePackages.mp4" type="video/mp4" markdown="1" >
-</video>
-
+<video src="./images/managePackages.mp4" autoplay loop controls muted height="250px" title="Manage Packages (install, update, and uninstall)"></video>
