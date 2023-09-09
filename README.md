@@ -43,7 +43,7 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 <table>
   <tr>
     <td valign="top">
-    <video src="./images/workspaceEnvs.mp4" autoplay loop controls muted height="250px" title="Workspace Environments"></video>
+    <video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/workspaceEnvs.mp4" autoplay loop controls muted height="250px" title="Workspace Environments"></video>
     </td>
     <td valign="top">
     <ul>
@@ -58,12 +58,12 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 
 ### Create Workspace Environments
 
-<video src="./images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Workspace Environments"></video>
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Workspace Environments"></video>
 
 ### Create Other Environments (Conda, PyEnv, etc)
 
-<video src="./images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Other Environments (Conda, PyEnv, etc)"></video>
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Other Environments (Conda, PyEnv, etc)"></video>
 
 ### Manage Packages (install, update, and uninstall)
 
-<video src="./images/managePackages.mp4" autoplay loop controls muted height="250px" title="Manage Packages (install, update, and uninstall)"></video>
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/managePackages.mp4" autoplay loop controls muted height="250px" title="Manage Packages (install, update, and uninstall)"></video>
