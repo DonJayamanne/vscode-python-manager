@@ -53,7 +53,7 @@ export class Package {
     }
 }
 export class EnvironmentTypeWrapper {
-    constructor(public readonly type: EnvironmentType) {}
+    constructor(public readonly type: EnvironmentType) { }
 }
 export class EnvironmentWrapper {
     public get id() {
@@ -64,7 +64,7 @@ export class EnvironmentWrapper {
         private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
         private readonly isActiveEnvironment?: boolean,
         public readonly owningFolder?: WorkspaceFolder,
-    ) {}
+    ) { }
 
     public asTreeItem(
         api: PythonExtension,
@@ -81,7 +81,7 @@ export class EnvironmentWrapper {
         const label = getEnvLabel(env);
         // const activePrefix = this.isActiveEnvironment ? 'Active: ' : '';
         const activePrefix = '';
-        const tree = new TreeItem(activePrefix + label + (version ? ` (${version})` : ''), defaultState);
+        const tree = new TreeItem(activePrefix + label + (version.trim() ? ` (${version.trim()})` : ''), defaultState);
         const isEmptyCondaEnv = getEnvironmentType(env) === EnvironmentType.Conda && !env.executable.uri;
         const executable = getDisplayPath(env.environment?.folderUri?.fsPath || env.path);
         tree.tooltip = [version, executable].filter((item) => !!item).join('\n');
@@ -116,14 +116,14 @@ export class EnvironmentWrapper {
 }
 
 export class EnvironmentInfo {
-    constructor(public readonly label: string, public value: string) {}
+    constructor(public readonly label: string, public value: string) { }
 }
 export class EnvironmentInformationWrapper {
-    constructor(public readonly env: Environment) {}
+    constructor(public readonly env: Environment) { }
 }
 export class PackageWrapper {
     public readonly packages: Package[] = [];
-    constructor(public env: Environment, public owningFolder?: WorkspaceFolder) {}
+    constructor(public env: Environment, public owningFolder?: WorkspaceFolder) { }
     asTreeItem(defaultState: TreeItemCollapsibleState = TreeItemCollapsibleState.Collapsed) {
         const tree = new TreeItem('Packages', defaultState);
 

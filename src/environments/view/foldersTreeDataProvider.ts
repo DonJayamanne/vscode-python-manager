@@ -35,7 +35,7 @@ export class ActiveWorkspaceEnvironment {
         public readonly folder: WorkspaceFolder,
         private readonly api: PythonExtension,
         private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
-    ) {}
+    ) { }
     public asNode(api: PythonExtension = this.api) {
         const envPath = api.environments.getActiveEnvironmentPath(this.folder.uri);
         const env = envPath ? api.environments.known.find((e) => e.id === envPath.id) : undefined;
@@ -61,7 +61,7 @@ export class WorkspaceFolderWrapper {
     constructor(
         public readonly folder: WorkspaceFolder,
         private readonly canEnvBeDeleted: (envType: EnvironmentType) => boolean,
-    ) {}
+    ) { }
     public asTreeItem(api: PythonExtension) {
         if (workspace.workspaceFolders?.length === 1) {
             const envPath = api.environments.getActiveEnvironmentPath(this.folder.uri);
@@ -77,7 +77,7 @@ export class WorkspaceFolderWrapper {
     }
 }
 export class WorkspaceFolderEnvironments {
-    constructor(public readonly folder: WorkspaceFolder) {}
+    constructor(public readonly folder: WorkspaceFolder) { }
 
     public asTreeItem() {
         const tree = new TreeItem('Workspace Envs', TreeItemCollapsibleState.Expanded);
@@ -175,8 +175,17 @@ export class WorkspaceFoldersTreeDataProvider implements TreeDataProvider<Worksp
             const workspaceEnvs = await getAllEnvsBelongingToWorkspaceFolder(folderUri, this.api, this.canEnvBeDeleted);
 
             const items: WorkspaceFoldersTreeNode[] = [this.getWorkspaceActiveEnv(folderUri)];
-            if (workspaceEnvs.length) {
+            if (workspaceEnvs.length > 1) {
                 items.push(new WorkspaceFolderEnvironments(folderUri));
+            }
+            else if (workspaceEnvs.length === 1) {
+                // Ok we know we have workspace specific envs,
+                // However if the current active env is already the same workspace env,
+                // Then no point displaying this same node
+                const activeEnv = this.api.environments.getActiveEnvironmentPath(folderUri.uri);
+                if (activeEnv.id !== workspaceEnvs[0].id) {
+                    items.push(new WorkspaceFolderEnvironments(folderUri));
+                }
             }
             return items;
         }

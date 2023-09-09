@@ -74,7 +74,7 @@ export async function getInstallPipPackageSpawnOptions(
     pkg: PipPackageInfo,
     _token: CancellationToken,
 ): Promise<{ command: string; args: string[]; options?: SpawnOptions }> {
-    return { command: env.path, args: ['-m', 'pip', 'install', '-y', pkg.name] };
+    return { command: env.path, args: ['-m', 'pip', 'install', pkg.name, '-q'] };
 }
 export async function exportPipPackages(env: Environment | ResolvedEnvironment) {
     const result = await exec(env.path, ['-m', 'pip', 'freeze'], { timeout: 60_000 });

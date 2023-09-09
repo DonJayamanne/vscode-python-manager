@@ -1,5 +1,5 @@
 import { Environment } from '@vscode/python-extension';
-import { ProgressLocation, QuickPickItem, window } from 'vscode';
+import { CancellationError, ProgressLocation, QuickPickItem, window } from 'vscode';
 import { traceError } from '../client/logging';
 import {
     OutdatedPipPackageInfo,
@@ -159,13 +159,22 @@ export async function searchPackage(env: Environment): Promise<SearchPackageResu
     try {
         if (isCondaEnvironment(env)) {
             const result = await searchPackageWithProvider(searchCondaPackage, env);
+            if (!result) {
+                throw new CancellationError();
+            }
             return { conda: result };
         }
         if (getEnvironmentType(env) === EnvironmentType.Poetry) {
             const result = await searchPackageWithProvider(searchPoetryPackage, env);
+            if (!result) {
+                throw new CancellationError();
+            }
             return { poetry: result };
         }
         const result = await searchPackageWithProvider(searchPipPackage, env);
+        if (!result) {
+            throw new CancellationError();
+        }
         return { pip: result };
     } catch (ex) {
         traceError(`Failed to install a package in ${env.id})`, ex);

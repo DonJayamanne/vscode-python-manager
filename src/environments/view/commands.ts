@@ -13,6 +13,7 @@ import { ActiveWorkspaceEnvironment, WorkspaceFoldersTreeDataProvider } from './
 import { PythonEnvironmentsTreeDataProvider } from './environmentsTreeDataProvider';
 import { IDisposable } from '../../client/common/types';
 import { disposeAll } from '../../client/common/utils/resourceLifecycle';
+import { sleep } from '../../client/common/utils/async';
 
 function triggerChanges(item: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,7 +32,7 @@ export function registerCommands(context: ExtensionContext) {
                 'Yes',
                 'No',
             );
-            if (yes === 'No') {
+            if (!yes || yes === 'No') {
                 return;
             }
 
@@ -66,6 +67,9 @@ export function registerCommands(context: ExtensionContext) {
 
             // Other packages may have been uninstalled, so refresh all packages.
             triggerChanges(pkg.parent);
+            // Found that we might need to wait for a bit before refreshing the tree.
+            await sleep(1000);
+            triggerChanges(pkg.parent);
         }),
     );
     disposables.push(
@@ -76,12 +80,10 @@ export function registerCommands(context: ExtensionContext) {
             if (!result) {
                 return;
             }
-            if (result) {
-                await installPackage(pkg.env, result);
+            await installPackage(pkg.env, result);
 
-                // Other packages may have been updated, so refresh all packages.
-                triggerChanges(pkg);
-            }
+            // Other packages may have been updated, so refresh all packages.
+            triggerChanges(pkg);
         }),
     );
     disposables.push(
