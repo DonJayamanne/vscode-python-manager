@@ -25,45 +25,20 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
 
 ### Quickly change your Workspace Python Environment
 
-<table>
-  <tr>
-    <td valign="top">
-    <video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/activeWorkspaceEnv.mp4" autoplay loop controls muted height="250px" title="Quickly Change Workspace Python Environment"></video>
-    </td>
-    <td valign="top">
-    <ul>
-<li> Find your environment and just click on the ★ (star) icon.</li>
-</ul>
-    </td>
-  </tr>
- </table>
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/activeWorkspaceEnv.mp4" autoplay loop controls muted width="600px" title="Quickly Change Workspace Python Environment"></video>
 
 ### Workspace Environments
 
-<table>
-  <tr>
-    <td valign="top">
-    <video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/workspaceEnvs.mp4" autoplay loop controls muted height="250px" title="Workspace Environments"></video>
-    </td>
-    <td valign="top">
-    <ul>
-<li> View all of the Python environments that belong to the current workspace.</li>
-<li> This can serve as a quick way to tell that a workspace folder has a specific environment.</li>
-<li> In this sample, one can see that the folder as a virtual environment named `.venv` but the active Python Enviornment is `base`.</li>
-</ul>
-    </td>
-  </tr>
- </table>
-
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/workspaceEnvs.mp4" autoplay loop controls muted width="600px" title="Workspace Environments"></video>
 
 ### Create Workspace Environments
 
-<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Workspace Environments"></video>
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/createVenv.mp4" autoplay loop controls muted width="600px" title="Create Workspace Environments"></video>
 
 ### Create Other Environments (Conda, PyEnv, etc)
 
-<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/createVenv.mp4" autoplay loop controls muted height="250px" title="Create Other Environments (Conda, PyEnv, etc)"></video>
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/createVenv.mp4" autoplay loop controls muted width="600px" title="Create Other Environments (Conda, PyEnv, etc)"></video>
 
 ### Manage Packages (install, update, and uninstall)
 
-<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/managePackages.mp4" autoplay loop controls muted height="250px" title="Manage Packages (install, update, and uninstall)"></video>
+<video src="https://github.com/DonJayamanne/vscode-python-manager/raw/main/images/managePackages.mp4" autoplay loop controls muted width="600px" title="Manage Packages (install, update, and uninstall)"></video>
