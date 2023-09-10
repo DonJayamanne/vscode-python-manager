@@ -21,7 +21,7 @@ export async function getExecutablePath(python: PythonExecInfo, shellExec: Shell
         const argv = [info.command, ...info.args];
         // Concat these together to make a set of quoted strings
         const quoted = argv.reduce(
-            (p, c) => (p ? `${p} ${c.toCommandArgumentForPythonExt()}` : `${c.toCommandArgumentForPythonExt()}`),
+            (p, c) => (p ? `${p} ${c.toCommandArgumentForPythonEnvMgrExt()}` : `${c.toCommandArgumentForPythonEnvMgrExt()}`),
             '',
         );
         const result = await shellExec(quoted, { timeout: 15000 });

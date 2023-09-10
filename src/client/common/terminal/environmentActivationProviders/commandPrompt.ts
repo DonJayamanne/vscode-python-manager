@@ -66,13 +66,13 @@ export class CommandPromptAndPowerShell extends VenvBaseActivationCommandProvide
         }
 
         if (targetShell === TerminalShellType.commandPrompt && scriptFile.endsWith('activate.bat')) {
-            return [scriptFile.fileToCommandArgumentForPythonExt()];
+            return [scriptFile.fileToCommandArgumentForPythonMgrExt()];
         }
         if (
             (targetShell === TerminalShellType.powershell || targetShell === TerminalShellType.powershellCore) &&
             scriptFile.endsWith('Activate.ps1')
         ) {
-            return [`& ${scriptFile.fileToCommandArgumentForPythonExt()}`];
+            return [`& ${scriptFile.fileToCommandArgumentForPythonMgrExt()}`];
         }
         if (targetShell === TerminalShellType.commandPrompt && scriptFile.endsWith('Activate.ps1')) {
             // lets not try to run the powershell file from command prompt (user may not have powershell)

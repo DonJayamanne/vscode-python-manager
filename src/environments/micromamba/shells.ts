@@ -10,15 +10,15 @@ export async function initializeMicromambaShells() {
     // Tip: Run these in the terminal to see what files will be updated.
     if (getOSType() === OSType.Windows) {
         await Promise.all([
-            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'cmd.exe', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonExt()]),
-            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'powershell', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonExt()])
+            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'cmd.exe', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonMgrExt()]),
+            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'powershell', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonMgrExt()])
         ]);
     } else {
         const results = await Promise.all([
-            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'bash', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonExt()]),
-            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'fish', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonExt()]),
-            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'xonsh', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonExt()]),
-            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'zsh', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonExt()])
+            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'bash', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonMgrExt()]),
+            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'fish', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonMgrExt()]),
+            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'xonsh', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonMgrExt()]),
+            exec(MICROMAMBA_EXE, ['shell', 'init', '-s', 'zsh', '-p', MICROMAMBA_ROOTPREFIX.fileToCommandArgumentForPythonMgrExt()])
         ]);
         console.log(results);
     }

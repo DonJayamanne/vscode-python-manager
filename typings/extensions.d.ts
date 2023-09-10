@@ -20,12 +20,12 @@ declare interface String {
      * Appropriately formats a string so it can be used as an argument for a command in a shell.
      * E.g. if an argument contains a space, then it will be enclosed within double quotes.
      */
-    toCommandArgumentForPythonExt(): string;
+    toCommandArgumentForPythonEnvMgrExt(): string;
     /**
      * Appropriately formats a a file path so it can be used as an argument for a command in a shell.
      * E.g. if an argument contains a space, then it will be enclosed within double quotes.
      */
-    fileToCommandArgumentForPythonExt(): string;
+    fileToCommandArgumentForPythonMgrExt(): string;
     /**
      * String.format() implementation.
      * Tokens such as {0}, {1} will be replaced with corresponding positional arguments.

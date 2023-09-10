@@ -70,7 +70,7 @@ export class CondaActivationCommandProvider implements ITerminalActivationComman
                 targetShell !== TerminalShellType.bash &&
                 targetShell !== TerminalShellType.gitbash
             ) {
-                return [activatePath.path, `conda activate ${condaEnv.toCommandArgumentForPythonExt()}`];
+                return [activatePath.path, `conda activate ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`];
             }
 
             const condaInfo = await this.condaService.getCondaInfo();
@@ -86,12 +86,12 @@ export class CondaActivationCommandProvider implements ITerminalActivationComman
                 if (activatePath.path === 'activate') {
                     return [
                         `source ${activatePath.path}`,
-                        `conda activate ${condaEnv.toCommandArgumentForPythonExt()}`,
+                        `conda activate ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`,
                     ];
                 }
-                return [`source ${activatePath.path} ${condaEnv.toCommandArgumentForPythonExt()}`];
+                return [`source ${activatePath.path} ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`];
             }
-            return [`conda activate ${condaEnv.toCommandArgumentForPythonExt()}`];
+            return [`conda activate ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`];
         }
 
         switch (targetShell) {
@@ -120,7 +120,7 @@ export class CondaActivationCommandProvider implements ITerminalActivationComman
             const condaScriptsPath: string = path.dirname(condaExePath);
             // prefix the cmd with the found path, and ensure it's quoted properly
             activateCmd = path.join(condaScriptsPath, activateCmd);
-            activateCmd = activateCmd.toCommandArgumentForPythonExt();
+            activateCmd = activateCmd.toCommandArgumentForPythonEnvMgrExt();
         }
 
         return activateCmd;
@@ -128,7 +128,7 @@ export class CondaActivationCommandProvider implements ITerminalActivationComman
 
     public async getWindowsCommands(condaEnv: string): Promise<string[] | undefined> {
         const activate = await this.getWindowsActivateCommand();
-        return [`${activate} ${condaEnv.toCommandArgumentForPythonExt()}`];
+        return [`${activate} ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`];
     }
 }
 
@@ -139,16 +139,16 @@ export class CondaActivationCommandProvider implements ITerminalActivationComman
  * Extension will not attempt to work around issues by trying to setup shell for user.
  */
 export async function _getPowershellCommands(condaEnv: string): Promise<string[] | undefined> {
-    return [`conda activate ${condaEnv.toCommandArgumentForPythonExt()}`];
+    return [`conda activate ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`];
 }
 
 async function getFishCommands(condaEnv: string, condaFile: string): Promise<string[] | undefined> {
     // https://github.com/conda/conda/blob/be8c08c083f4d5e05b06bd2689d2cd0d410c2ffe/shell/etc/fish/conf.d/conda.fish#L18-L28
-    return [`${condaFile.fileToCommandArgumentForPythonExt()} activate ${condaEnv.toCommandArgumentForPythonExt()}`];
+    return [`${condaFile.fileToCommandArgumentForPythonMgrExt()} activate ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`];
 }
 
 async function getUnixCommands(condaEnv: string, condaFile: string): Promise<string[] | undefined> {
     const condaDir = path.dirname(condaFile);
     const activateFile = path.join(condaDir, 'activate');
-    return [`source ${activateFile.fileToCommandArgumentForPythonExt()} ${condaEnv.toCommandArgumentForPythonExt()}`];
+    return [`source ${activateFile.fileToCommandArgumentForPythonMgrExt()} ${condaEnv.toCommandArgumentForPythonEnvMgrExt()}`];
 }

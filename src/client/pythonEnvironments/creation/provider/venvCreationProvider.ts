@@ -44,7 +44,7 @@ function generateCommandArgs(installInfo?: IPackageInstallSelection[], addGitIgn
     if (installInfo) {
         if (installInfo.some((i) => i.installType === 'toml')) {
             const source = installInfo.find((i) => i.installType === 'toml')?.source;
-            command.push('--toml', source?.fileToCommandArgumentForPythonExt() || 'pyproject.toml');
+            command.push('--toml', source?.fileToCommandArgumentForPythonMgrExt() || 'pyproject.toml');
         }
         const extras = installInfo.filter((i) => i.installType === 'toml').map((i) => i.installItem);
         extras.forEach((r) => {

@@ -71,7 +71,7 @@ export function normalizeSelection(): [string[], (out: string) => string] {
 // printEnvVariables.py
 
 export function printEnvVariables(): [string[], (out: string) => NodeJS.ProcessEnv] {
-    const script = path.join(SCRIPTS_DIR, 'printEnvVariables.py').fileToCommandArgumentForPythonExt();
+    const script = path.join(SCRIPTS_DIR, 'printEnvVariables.py').fileToCommandArgumentForPythonMgrExt();
     const args = [script];
 
     function parse(out: string): NodeJS.ProcessEnv {
@@ -90,11 +90,11 @@ export function shell_exec(command: string, lockfile: string, shellArgs: string[
     // could be anything.
     return [
         script,
-        command.fileToCommandArgumentForPythonExt(),
+        command.fileToCommandArgumentForPythonMgrExt(),
         // The shell args must come after the command
         // but before the lockfile.
         ...shellArgs,
-        lockfile.fileToCommandArgumentForPythonExt(),
+        lockfile.fileToCommandArgumentForPythonMgrExt(),
     ];
 }
 

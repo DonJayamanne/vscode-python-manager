@@ -45,6 +45,6 @@ export class Bash extends VenvBaseActivationCommandProvider {
         if (!scriptFile) {
             return undefined;
         }
-        return [`source ${scriptFile.fileToCommandArgumentForPythonExt()}`];
+        return [`source ${scriptFile.fileToCommandArgumentForPythonMgrExt()}`];
     }
 }

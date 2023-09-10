@@ -27,7 +27,7 @@ export class PyEnvActivationCommandProvider implements ITerminalActivationComman
             return undefined;
         }
 
-        return [`pyenv shell ${interpreter.envName.toCommandArgumentForPythonExt()}`];
+        return [`pyenv shell ${interpreter.envName.toCommandArgumentForPythonEnvMgrExt()}`];
     }
 
     public async getActivationCommandsForInterpreter(
@@ -41,6 +41,6 @@ export class PyEnvActivationCommandProvider implements ITerminalActivationComman
             return undefined;
         }
 
-        return [`pyenv shell ${interpreter.envName.toCommandArgumentForPythonExt()}`];
+        return [`pyenv shell ${interpreter.envName.toCommandArgumentForPythonEnvMgrExt()}`];
     }
 }

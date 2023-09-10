@@ -44,7 +44,7 @@ function generateCommandArgs(version?: string, options?: CreateEnvironmentOption
         command.push('--git-ignore');
     }
     if (name && (name || '').trim().length) {
-        command.push('--name', name.toCommandArgumentForPythonExt());
+        command.push('--name', name.toCommandArgumentForPythonEnvMgrExt());
     }
 
     if (installPackages) {

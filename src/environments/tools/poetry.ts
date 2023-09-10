@@ -90,7 +90,7 @@ export async function deleteEnv(
     if (!poetry) {
         return [];
     }
-    const args = [env.path.fileToCommandArgumentForPythonExt()];
+    const args = [env.path.fileToCommandArgumentForPythonMgrExt()];
     const message = `Deleting Poetry environment ${getEnvLoggingInfo(env)} with command ${[
         poetry.command,
         'env',
@@ -171,7 +171,7 @@ export async function exportPoetryPackages(env: Environment | ResolvedEnvironmen
         'requirements.txt',
     ]}]}`;
     traceVerbose(message);
-    const result = await shellExec(`${poetry.command.fileToCommandArgumentForPythonExt()} export -f requirements.txt`, {
+    const result = await shellExec(`${poetry.command.fileToCommandArgumentForPythonMgrExt()} export -f requirements.txt`, {
         timeout: 60_000,
         cwd: workspaceFolder!.uri.fsPath,
         throwOnStdErr: true,
@@ -192,7 +192,7 @@ export async function searchPoetryPackage(value: string, env: Environment, token
         '--no-ansi',
     ]}]}`;
     traceVerbose(message);
-    const result = await shellExec(`${poetry.command.fileToCommandArgumentForPythonExt()} search ${value}`, {
+    const result = await shellExec(`${poetry.command.fileToCommandArgumentForPythonMgrExt()} search ${value}`, {
         timeout: 60_000,
         cwd: workspaceFolder!.uri.fsPath,
         throwOnStdErr: true,

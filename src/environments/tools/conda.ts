@@ -358,7 +358,7 @@ export async function exportCondaPackages(env: Environment | ResolvedEnvironment
     }
     const result = await exec(
         conda.command,
-        ['env', 'export', '-p', env.executable.sysPrefix.fileToCommandArgumentForPythonExt()],
+        ['env', 'export', '-p', env.executable.sysPrefix.fileToCommandArgumentForPythonMgrExt()],
         { timeout: 60_000 },
     );
     return { contents: result.stdout, language: 'yaml', file: 'environment.yml' };
@@ -381,7 +381,7 @@ export async function getCondaPackageInstallSpawnOptions(
         args.push('-c', packageInfo.channel);
     }
     args.push(`${packageInfo.name}==${packageInfo.version}`);
-    args.push('-p', env.executable.sysPrefix.fileToCommandArgumentForPythonExt(), '-y');
+    args.push('-p', env.executable.sysPrefix.fileToCommandArgumentForPythonMgrExt(), '-y');
     return { command: conda.command, args };
 }
 

@@ -28,7 +28,7 @@ export class CondaService implements ICondaService {
         const activatePath = (condaPath
             ? path.join(path.dirname(condaPath), 'activate')
             : 'activate'
-        ).fileToCommandArgumentForPythonExt(); // maybe global activate?
+        ).fileToCommandArgumentForPythonMgrExt(); // maybe global activate?
 
         // try to find the activate script in the global conda root prefix.
         if (this.platform.isLinux || this.platform.isMac) {
@@ -38,7 +38,7 @@ export class CondaService implements ICondaService {
                 const globalActivatePath = path
                     // eslint-disable-next-line camelcase
                     .join(condaInfo.root_prefix, this.platform.virtualEnvBinName, 'activate')
-                    .fileToCommandArgumentForPythonExt();
+                    .fileToCommandArgumentForPythonMgrExt();
 
                 if (activatePath === globalActivatePath || !(await this.fileSystem.fileExists(activatePath))) {
                     return {

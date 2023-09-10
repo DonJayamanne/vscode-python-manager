@@ -41,7 +41,7 @@ export class PipEnvActivationCommandProvider implements ITerminalActivationComma
             }
         }
         const execName = this.pipEnvExecution.executable;
-        return [`${execName.fileToCommandArgumentForPythonExt()} shell`];
+        return [`${execName.fileToCommandArgumentForPythonMgrExt()} shell`];
     }
 
     public async getActivationCommandsForInterpreter(pythonPath: string): Promise<string[] | undefined> {
@@ -51,6 +51,6 @@ export class PipEnvActivationCommandProvider implements ITerminalActivationComma
         }
 
         const execName = this.pipEnvExecution.executable;
-        return [`${execName.fileToCommandArgumentForPythonExt()} shell`];
+        return [`${execName.fileToCommandArgumentForPythonMgrExt()} shell`];
     }
 }
