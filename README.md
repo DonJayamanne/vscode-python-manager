@@ -24,6 +24,6 @@ A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marke
     * Access Virtual Environments that belong to other workspace folders.
     * Create multiple terminals for different Python environments.
     * Create terminals activated with Global Python environments (even though there are no actiavtion scripts for such environments).
-    * Ability to view installed pacakges.
+    * Ability to view installed packages.
     * Coming soon - managing environments & packages.
 
