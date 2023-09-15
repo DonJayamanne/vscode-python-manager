@@ -12,6 +12,7 @@ import { IProcessLogger, SpawnOptions } from './types';
 import { escapeRegExp } from 'lodash';
 import { replaceAll } from '../stringUtils';
 import { identifyShellFromShellPath } from '../terminal/shellDetectors/baseShellDetector';
+import { trimQuotes } from '../extensions';
 
 @injectable()
 export class ProcessLogger implements IProcessLogger {
@@ -24,7 +25,7 @@ export class ProcessLogger implements IProcessLogger {
             return;
         }
         let command = args
-            ? [fileOrCommand, ...args].map((e) => e.trimQuotes().toCommandArgumentForPythonEnvMgrExt()).join(' ')
+            ? [fileOrCommand, ...args].map((e) => trimQuotes(e).toCommandArgumentForPythonMgrExt()).join(' ')
             : fileOrCommand;
         const info = [`> ${this.getDisplayCommands(command)}`];
         if (options?.cwd) {

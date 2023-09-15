@@ -11,31 +11,15 @@
 
 declare interface String {
     /**
-     * Split a string using the cr and lf characters and return them as an array.
-     * By default lines are trimmed and empty lines are removed.
-     * @param {SplitLinesOptions=} splitOptions - Options used for splitting the string.
-     */
-    splitLines(splitOptions?: { trim: boolean; removeEmptyEntries?: boolean }): string[];
-    /**
      * Appropriately formats a string so it can be used as an argument for a command in a shell.
      * E.g. if an argument contains a space, then it will be enclosed within double quotes.
      */
-    toCommandArgumentForPythonEnvMgrExt(): string;
+    toCommandArgumentForPythonMgrExt(): string;
     /**
      * Appropriately formats a a file path so it can be used as an argument for a command in a shell.
      * E.g. if an argument contains a space, then it will be enclosed within double quotes.
      */
     fileToCommandArgumentForPythonMgrExt(): string;
-    /**
-     * String.format() implementation.
-     * Tokens such as {0}, {1} will be replaced with corresponding positional arguments.
-     */
-    format(...args: string[]): string;
-    /**
-     * String.trimQuotes implementation
-     * Removes leading and trailing quotes from a string
-     */
-    trimQuotes(): string;
 }
 
 declare interface Promise<T> {

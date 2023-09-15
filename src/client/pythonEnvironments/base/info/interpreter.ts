@@ -77,7 +77,7 @@ export async function getInterpreterInfo(
 
     // Concat these together to make a set of quoted strings
     const quoted = argv.reduce(
-        (p, c) => (p ? `${p} ${c.toCommandArgumentForPythonEnvMgrExt()}` : `${c.toCommandArgumentForPythonEnvMgrExt()}`),
+        (p, c) => (p ? `${p} ${c.toCommandArgumentForPythonMgrExt()}` : `${c.toCommandArgumentForPythonMgrExt()}`),
         '',
     );
 

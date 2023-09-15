@@ -10,6 +10,7 @@ import { createDeferred } from '../../client/common/utils/async';
 import { registerCreateEnvironmentProvider } from '../../client/pythonEnvironments/creation/createEnvApi';
 import { EnvironmentType } from '../../client/pythonEnvironments/info';
 import { CreateEnvironmentResult } from '../../client/pythonEnvironments/creation/proposed.createEnvApis';
+import { splitLines } from '../../client/common/stringUtils';
 
 
 const pyEnvEnvVars = createDeferred<NodeJS.ProcessEnv>();
@@ -59,9 +60,8 @@ export async function getPyEnvVersion(iocContainer: IServiceContainer) {
             }
 
             const start = versionStart + '## Release '.length;
-            const verionLines = textFile
-                .substring(start, start + 20)
-                .splitLines()
+            const verionLines = splitLines(textFile
+                .substring(start, start + 20))
                 .map((line) => line.trim())
                 .filter((line) => line.length);
 

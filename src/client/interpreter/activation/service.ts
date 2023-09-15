@@ -189,7 +189,7 @@ export class EnvironmentActivationService implements IEnvironmentActivationServi
         try {
             const [args, parse] = internalScripts.printEnvVariables();
             args.forEach((arg, i) => {
-                args[i] = arg.toCommandArgumentForPythonEnvMgrExt();
+                args[i] = arg.toCommandArgumentForPythonMgrExt();
             });
             const command = `${interpreterPath} ${args.join(' ')}`;
             const processService = await this.processServiceFactory.create(resource, { doNotUseCustomEnvs: true });
@@ -240,7 +240,7 @@ export class EnvironmentActivationService implements IEnvironmentActivationServi
             let command: string | undefined;
             const [args, parse] = internalScripts.printEnvVariables();
             args.forEach((arg, i) => {
-                args[i] = arg.toCommandArgumentForPythonEnvMgrExt();
+                args[i] = arg.toCommandArgumentForPythonMgrExt();
             });
             if (interpreter?.envType === EnvironmentType.Conda) {
                 const conda = await Conda.getConda(shell);
@@ -250,7 +250,7 @@ export class EnvironmentActivationService implements IEnvironmentActivationServi
                 });
                 if (pythonArgv) {
                     // Using environment prefix isn't needed as the marker script already takes care of it.
-                    command = [...pythonArgv, ...args].map((arg) => arg.toCommandArgumentForPythonEnvMgrExt()).join(' ');
+                    command = [...pythonArgv, ...args].map((arg) => arg.toCommandArgumentForPythonMgrExt()).join(' ');
                 }
             }
             if (!command) {

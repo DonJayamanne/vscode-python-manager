@@ -56,11 +56,11 @@ String.prototype.fileToCommandArgumentForPythonMgrExt = function (this: string):
  * String.trimQuotes implementation
  * Removes leading and trailing quotes from a string
  */
-String.prototype.trimQuotes = function (this: string): string {
-    if (!this) {
-        return this;
+export function trimQuotes(value: string): string {
+    if (!value) {
+        return value;
     }
-    return this.replace(/(^['"])|(['"]$)/g, '');
+    return value.replace(/(^['"])|(['"]$)/g, '');
 };
 
 declare interface Promise<T> {
@@ -74,12 +74,11 @@ declare interface Promise<T> {
  * Explicitly tells that promise should be run asynchonously.
  */
 Promise.prototype.ignoreErrors = function <T>(this: Promise<T>) {
-    return this.catch(() => {});
+    // @ts-ignore
+    return this.catch(() => { });
 };
 
-if (!String.prototype.format) {
-    String.prototype.format = function (this: string) {
-        const args = arguments;
-        return this.replace(/{(\d+)}/g, (match, number) => (args[number] === undefined ? match : args[number]));
-    };
-}
+export function format(value: string) {
+    const args = arguments;
+    return value.replace(/{(\d+)}/g, (match, number) => (args[number] === undefined ? match : args[number]));
+};

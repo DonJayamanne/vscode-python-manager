@@ -66,7 +66,7 @@ export class TerminalHelper implements ITerminalHelper {
             terminalShellType === TerminalShellType.powershell ||
             terminalShellType === TerminalShellType.powershellCore;
         const commandPrefix = isPowershell ? '& ' : '';
-        const formattedArgs = args.map((a) => a.toCommandArgumentForPythonEnvMgrExt());
+        const formattedArgs = args.map((a) => a.toCommandArgumentForPythonMgrExt());
 
         return `${commandPrefix}${command.fileToCommandArgumentForPythonMgrExt()} ${formattedArgs.join(' ')}`.trim();
     }
