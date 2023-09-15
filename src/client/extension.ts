@@ -21,7 +21,7 @@ const logDispose: { dispose: () => void }[] = [];
 
 //===============================================
 // loading starts here
-
+import './common/extensions';
 import { ProgressLocation, ProgressOptions, window } from 'vscode';
 import { IDisposableRegistry, IExtensionContext } from './common/types';
 import { createDeferred } from './common/utils/async';
