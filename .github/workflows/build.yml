@@ -39,8 +39,8 @@ jobs:
             vsix_type = "insiders"
           else:
             vsix_type = "release"
-          print(f"::set-output name=vsix_name::ms-python-{vsix_type}.vsix")
-          print(f"::set-output name=vsix_artifact_name::ms-python-{vsix_type}-vsix")
+          print(f"vsix_name=ms-python-{vsix_type}.vsix >> "$GITHUB_OUTPUT"")
+          print(f"vsix_artifact_name=ms-python-{vsix_type}-vsix >> "$GITHUB_OUTPUT"")
 
   build-vsix:
     name: Create VSIX
