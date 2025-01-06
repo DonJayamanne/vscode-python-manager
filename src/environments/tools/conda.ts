@@ -161,12 +161,13 @@ export async function deleteEnv(
         conda.command,
         'env',
         'remove',
+        '-y',
     ]
         .concat(args)
         .join(' ')}`;
     traceVerbose(message);
     progress.report({ message });
-    const result = await execObservable(conda.command, ['env', 'remove'].concat(args), { timeout: 60_000 });
+    const result = await execObservable(conda.command, ['env', 'remove', '-y'].concat(args), { timeout: 60_000 });
     await new Promise<void>((resolve) => {
         result.out.subscribe({
             next: (output) => progress.report({ message: output.out }),
