@@ -54,7 +54,7 @@
     "prettier.printWidth": 120,
     "prettier.singleQuote": true,
     "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": true
+        "source.fixAll.eslint": "explicit"
     },
     "python.languageServer": "Default",
     "python.linting.pylintEnabled": false,
