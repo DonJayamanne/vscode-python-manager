@@ -1,8 +1,8 @@
 {
     "name": "python-environment-manager",
-    "displayName": "Python Environment Manager",
+    "displayName": "Python Environment Manager (deprecated)",
     "description": "View and manage Python environments & packages.",
-    "version": "1.2.6",
+    "version": "1.2.7",
     "capabilities": {
         "untrustedWorkspaces": {
             "supported": false,
