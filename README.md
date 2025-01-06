@@ -1,3 +1,11 @@
+# Deprecated
+
+This extension is no longer being maintained, all of its functionality has been (or might be) placed into the [Microsoft Python Environments Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs).
+
+Please download the [Microsoft Python Environments Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs) instead.
+
+Feel free to submit new issues or feature requests on the [Microsoft Python Environments Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs).
+
 # Python Environment Manager
 
 A [Visual Studio Code](https://code.visualstudio.com/) [extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) that provides the ability to view and manage all of your Python environments & packages from a single place.
