@@ -1,10 +1,10 @@
 # Deprecated
 
-This extension is no longer being maintained, all of its functionality has been (or might be) placed into the [Microsoft Python Environments Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs).
+This extension is no longer being maintained. We recommend migrating to the [Microsoft Python Environments Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs) instead. Some functionalities may not be present yet, but it is under active development and being actively maintained.
 
-Please download the [Microsoft Python Environments Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs) instead.
+> Note: The Python Environments extension requires requires the pre-release version of the Python extension (ms-python.python) to operate (version 2024.23.2025010901 or later). 
 
-Feel free to submit new issues or feature requests on the [Microsoft Python Environments Extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-python-envs).
+Feel free to submit new issues or feature requests on the [Microsoft Python Environments Extension repository](https://github.com/microsoft/vscode-python-environments/issues) and reference its documentation in the [README.md](https://github.com/microsoft/vscode-python-environments?tab=readme-ov-file#python-environments-and-package-manager-experimental).
 
 # Python Environment Manager
 
